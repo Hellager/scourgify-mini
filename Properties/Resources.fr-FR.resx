@@ -86,7 +86,7 @@
 		<value>À propos</value>
 	</data>
 	<data name="AboutDescription" xml:space="preserve">
-		<value>ScourgifyMini est un outil léger qui vous aide à protéger votre vie privée.</value>
+		<value>ScourgifyMini est un utilitaire léger de zone de notification pour nettoyer les traces de l'accès rapide Windows et protéger votre vie privée. Le mode incognito aide à réduire les nouvelles traces pendant l'exécution de l'application.</value>
 	</data>
 	<data name="AllRightsReserved" xml:space="preserve">
 		<value>Tous droits réservés.</value>

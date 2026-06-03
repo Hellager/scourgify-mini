@@ -104,7 +104,7 @@
     <value>關於</value>
   </data>
   <data name="AboutDescription" xml:space="preserve">
-    <value>幾淨Mini 是一個幫助您保護隱私的輕量級工具。</value>
+    <value>幾淨 Mini 是一個輕量級托盤工具，用於清理 Windows 快速存取痕跡並保護隱私。啟用无痕模式後，程式執行期間會盡量減少新的快速存取記錄。</value>
   </data>
   <data name="AllRightsReserved" xml:space="preserve">
     <value>版權所有。</value>

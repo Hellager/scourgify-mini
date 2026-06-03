@@ -104,7 +104,7 @@
     <value>About</value>
   </data>
   <data name="AboutDescription" xml:space="preserve">
-    <value>ScourgifyMini is a lightweight tool that helps you manage Windows Quick Access items and protect your privacy.</value>
+    <value>ScourgifyMini is a lightweight tray utility for privacy-focused Windows Quick Access cleanup. Incognito Mode helps reduce new Quick Access traces while the app is running.</value>
   </data>
   <data name="AllRightsReserved" xml:space="preserve">
     <value>All rights reserved.</value>

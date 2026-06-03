@@ -104,7 +104,7 @@
     <value>关于</value>
   </data>
   <data name="AboutDescription" xml:space="preserve">
-    <value>几净mini是一个轻量化的实用工具，用于保护个人隐私</value>
+    <value>几净 mini 是一个轻量级托盘工具，用于清理 Windows 快速访问痕迹并保护隐私。启用无痕模式后，程序运行期间会尽量减少新的快速访问记录。</value>
   </data>
   <data name="AllRightsReserved" xml:space="preserve">
     <value>All rights reserved.</value>

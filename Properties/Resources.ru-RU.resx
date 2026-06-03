@@ -86,7 +86,7 @@
 		<value>О программе</value>
 	</data>
 	<data name="AboutDescription" xml:space="preserve">
-		<value>ScourgifyMini - это легкий инструмент, который помогает защитить вашу конфиденциальность.</value>
+		<value>ScourgifyMini — это легкая утилита в области уведомлений для очистки следов быстрого доступа Windows и защиты конфиденциальности. Режим инкогнито помогает уменьшить появление новых следов во время работы приложения.</value>
 	</data>
 	<data name="AllRightsReserved" xml:space="preserve">
 		<value>Все права защищены.</value>

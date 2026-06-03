@@ -70,7 +70,7 @@ namespace ScourgifyMini.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to ScourgifyMini is a lightweight tool that helps you manage Windows Quick Access items and protect your privacy..
+        ///   Looks up a localized string similar to ScourgifyMini is a lightweight tray utility for privacy-focused Windows Quick Access cleanup. Incognito Mode helps reduce new Quick Access traces while the app is running..
         /// </summary>
         public static string AboutDescription {
             get {
