@@ -3,7 +3,7 @@ using System.IO;
 using Tomlyn;
 using Tomlyn.Model;
 
-namespace CleanRecentMini
+namespace ScourgifyMini
 {
     internal class Config
     {

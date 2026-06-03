@@ -1,6 +1,6 @@
-# clean-recent-mini
+# scourgify-mini
 
-CleanRecentMini is a lightweight tray utility for privacy-focused Windows Quick Access cleanup.
+ScourgifyMini is a lightweight tray utility for privacy-focused Windows Quick Access cleanup.
 
 ## Requirements
 

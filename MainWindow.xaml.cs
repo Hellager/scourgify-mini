@@ -14,7 +14,7 @@ using Application = System.Windows.Application;
 using NotifyIcon = System.Windows.Forms.NotifyIcon;
 
 
-namespace CleanRecentMini
+namespace ScourgifyMini
 {
     /// <summary>
     /// Interaction logic for MainWindow.xaml
@@ -22,7 +22,7 @@ namespace CleanRecentMini
     public partial class MainWindow : Window, IDisposable
     {
         private static Mutex _mutex = null;
-        private const string MutexName = "CleanRecentMini_SingleInstance_Mutex";
+        private const string MutexName = "ScourgifyMini_SingleInstance_Mutex";
         
         private NotifyIcon trayIcon;
         private Config config;
@@ -145,7 +145,7 @@ namespace CleanRecentMini
         {
             var logPath = Path.Combine(
                 Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location),
-                "logs", "CleanRecentMini.log");
+                "logs", "ScourgifyMini.log");
 
             var logConfig = new LoggerConfiguration()
                 .MinimumLevel.Debug();
@@ -161,7 +161,7 @@ namespace CleanRecentMini
                 outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] {Message:lj}{NewLine}{Exception}");
 
             Log.Logger = logConfig.CreateLogger();
-            Log.Information("CleanRecentMini Started");
+            Log.Information("ScourgifyMini Started");
         }
 
         private void InitializeLanguage()
@@ -410,7 +410,7 @@ namespace CleanRecentMini
         {
             trayIcon.Visible = false;
             trayIcon.Dispose();
-            Log.Information("CleanRecentMini Exited");
+            Log.Information("ScourgifyMini Exited");
             Log.CloseAndFlush();
 
             if (_mutex != null)
@@ -436,7 +436,7 @@ namespace CleanRecentMini
 
         private void UpdateAutoStart(bool enable)
         {
-            string appName = "CleanRecentMini";
+            string appName = "ScourgifyMini";
             string appPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
             using (RegistryKey key = Registry.CurrentUser.OpenSubKey(
                 "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true))

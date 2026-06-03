@@ -7,8 +7,8 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{6C0AE151-1010-4336-9447-75C43770C311}</ProjectGuid>
     <OutputType>WinExe</OutputType>
-    <RootNamespace>CleanRecentMini</RootNamespace>
-    <AssemblyName>CleanRecentMini</AssemblyName>
+    <RootNamespace>ScourgifyMini</RootNamespace>
+    <AssemblyName>ScourgifyMini</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <ProjectTypeGuids>{60dc8134-eba5-43b8-bcc9-bb4bc16c2548};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>

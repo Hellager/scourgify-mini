@@ -7,11 +7,11 @@ using System.Windows;
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("CleanRecentMini")]
-[assembly: AssemblyDescription("CleanRecentMini is a lightweight tool that helps you manage Windows Quick Access items and protect your privacy.")]
+[assembly: AssemblyTitle("ScourgifyMini")]
+[assembly: AssemblyDescription("ScourgifyMini is a lightweight tool that helps you manage Windows Quick Access items and protect your privacy.")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Stein Gu")]
-[assembly: AssemblyProduct("CleanRecentMini")]
+[assembly: AssemblyProduct("ScourgifyMini")]
 [assembly: AssemblyCopyright("Copyright ©  2025")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]

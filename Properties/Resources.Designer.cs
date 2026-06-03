@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace CleanRecentMini.Properties {
+namespace ScourgifyMini.Properties {
     using System;
     
     
@@ -39,7 +39,7 @@ namespace CleanRecentMini.Properties {
         public static global::System.Resources.ResourceManager ResourceManager {
             get {
                 if (object.ReferenceEquals(resourceMan, null)) {
-                    global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("CleanRecentMini.Properties.Resources", typeof(Resources).Assembly);
+                    global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("ScourgifyMini.Properties.Resources", typeof(Resources).Assembly);
                     resourceMan = temp;
                 }
                 return resourceMan;
@@ -70,7 +70,7 @@ namespace CleanRecentMini.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to CleanRecentMini is a lightweight tool that helps you manage Windows Quick Access items and protect your privacy..
+        ///   Looks up a localized string similar to ScourgifyMini is a lightweight tool that helps you manage Windows Quick Access items and protect your privacy..
         /// </summary>
         public static string AboutDescription {
             get {

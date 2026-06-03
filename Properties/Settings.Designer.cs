@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace CleanRecentMini.Properties
+namespace ScourgifyMini.Properties
 {
 
 

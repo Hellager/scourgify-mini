@@ -6,7 +6,7 @@ using System.Reflection;
 using System.Windows;
 using System.Windows.Navigation;
 
-namespace CleanRecentMini
+namespace ScourgifyMini
 {
     /// <summary>
     /// Interaction logic for AboutWindow.xaml
