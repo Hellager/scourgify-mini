@@ -38,6 +38,7 @@ namespace ScourgifyMini
         private QuickAccessManager _quickAccessManager;
         private QuickAccessLock _quickAccessLock;
 
+        private string _logPath;
         private readonly object _shutdownLock = new object();
         private readonly SemaphoreSlim _noTraceModeSemaphore = new SemaphoreSlim(1, 1);
         private bool _ownsMutex = false;
@@ -71,6 +72,7 @@ namespace ScourgifyMini
 
                 config = Config.Load();
                 InitializeLanguage();
+                LogStartupContext();
                 InitializeComponent();
                 Closing += OnWindowClosing;
                 Closed += OnWindowClosed;
@@ -97,7 +99,7 @@ namespace ScourgifyMini
                     Properties.Resources.Warning,
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
-                ShutdownApplication();
+                ShutdownApplication("InitializationFailure");
             }
         }
 
@@ -112,14 +114,15 @@ namespace ScourgifyMini
             if (!disposing || _disposed)
                 return;
 
-            ShutdownApplication();
+            ShutdownApplication("Dispose");
         }
 
         private void InitializeLogger()
         {
-            var logPath = Path.Combine(
+            _logPath = Path.Combine(
                 Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location),
-                "logs", "ScourgifyMini.log");
+                "logs", "ScourgifyMini-.log");
+            Directory.CreateDirectory(Path.GetDirectoryName(_logPath));
 
             var logConfig = new LoggerConfiguration()
                 .MinimumLevel.Debug();
@@ -128,10 +131,11 @@ namespace ScourgifyMini
             logConfig = logConfig.WriteTo.Console();
 #endif
             logConfig = logConfig.WriteTo.File(
-                logPath,
+                _logPath,
                 rollingInterval: RollingInterval.Day,
-                fileSizeLimitBytes: 10 * 1024 * 1024,
-                retainedFileCountLimit: 10,
+                fileSizeLimitBytes: 5 * 1024 * 1024,
+                rollOnFileSizeLimit: true,
+                retainedFileCountLimit: 3,
                 outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] {Message:lj}{NewLine}{Exception}");
 
             Log.Logger = logConfig.CreateLogger();
@@ -145,6 +149,21 @@ namespace ScourgifyMini
             Thread.CurrentThread.CurrentCulture = culture;
             Thread.CurrentThread.CurrentUICulture = culture;
             Properties.Resources.Culture = culture;
+        }
+
+        private void LogStartupContext()
+        {
+            var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+            Log.Information(
+                "Startup context: Version={Version}, ExecutablePath={ExecutablePath}, ConfigPath={ConfigPath}, LogPath={LogPath}, Language={Language}, AutoStart={AutoStart}, NoTraceMode={NoTraceMode}, CleanupNewRecentLinksOnUnlock={CleanupNewRecentLinksOnUnlock}",
+                assembly.GetName().Version,
+                assembly.Location,
+                Config.FilePath,
+                _logPath,
+                config.Language,
+                config.AutoStart,
+                config.NoTraceMode,
+                config.CleanupNewRecentLinksOnUnlock);
         }
 
         private void SynchronizeAutoStartOnStartup()
@@ -236,11 +255,16 @@ namespace ScourgifyMini
             }
             menuItem.Checked = true;
 
+            string previousLanguage = config.Language;
             config.Language = langCode;
             Config.Save(config);
 
             InitializeLanguage();
             RefreshMenuTexts();
+            Log.Information(
+                "Language changed: PreviousLanguage={PreviousLanguage}, Language={Language}",
+                previousLanguage,
+                config.Language);
         }
 
         private void RefreshMenuTexts()
@@ -285,10 +309,18 @@ namespace ScourgifyMini
             {
                 config.AutoStart = requestedAutoStart;
                 Config.Save(config);
+                Log.Information(
+                    "Auto-start changed: RequestedAutoStart={RequestedAutoStart}, AutoStart={AutoStart}",
+                    requestedAutoStart,
+                    config.AutoStart);
                 return;
             }
 
-            Log.Warning(error, "Failed to update auto-start registration from tray menu");
+            Log.Warning(
+                error,
+                "Failed to update auto-start registration from tray menu: RequestedAutoStart={RequestedAutoStart}, PreviousAutoStart={PreviousAutoStart}",
+                requestedAutoStart,
+                previousAutoStart);
             config.AutoStart = previousAutoStart;
             menuItem.Checked = previousAutoStart;
             Config.Save(config);
@@ -307,11 +339,17 @@ namespace ScourgifyMini
                 return;
 
             bool previousNoTraceMode = config.NoTraceMode;
+            bool requestedNoTraceMode = menuItem.Checked;
+            Log.Information(
+                "No-trace mode change requested: RequestedNoTraceMode={RequestedNoTraceMode}, PreviousNoTraceMode={PreviousNoTraceMode}",
+                requestedNoTraceMode,
+                previousNoTraceMode);
+
             menuItem.Enabled = false;
 
             try
             {
-                if (menuItem.Checked)
+                if (requestedNoTraceMode)
                 {
                     await EnterNoTraceModeAsync();
                     if (_shutdownStarted)
@@ -329,6 +367,7 @@ namespace ScourgifyMini
                 }
 
                 Config.Save(config);
+                Log.Information("No-trace mode config changed: NoTraceMode={NoTraceMode}", config.NoTraceMode);
             }
             catch (Exception ex)
             {
@@ -357,6 +396,7 @@ namespace ScourgifyMini
             if (noTraceModeItem != null)
                 noTraceModeItem.Enabled = false;
 
+            Log.Information("Starting no-trace mode from saved config");
             try
             {
                 await EnterNoTraceModeAsync();
@@ -475,7 +515,7 @@ namespace ScourgifyMini
 
         private void OnExitClick(object sender, EventArgs e)
         {
-            ShutdownApplication();
+            ShutdownApplication("TrayExit");
         }
 
         private void OnWindowClosing(object sender, CancelEventArgs e)
@@ -484,7 +524,7 @@ namespace ScourgifyMini
                 return;
 
             e.Cancel = true;
-            ShutdownApplication();
+            ShutdownApplication("WindowClosing");
         }
 
         private void OnWindowClosed(object sender, EventArgs e)
@@ -492,7 +532,7 @@ namespace ScourgifyMini
             Dispose();
         }
 
-        private void ShutdownApplication()
+        private void ShutdownApplication(string source)
         {
             lock (_shutdownLock)
             {
@@ -504,6 +544,7 @@ namespace ScourgifyMini
 
             try
             {
+                Log.Information("Shutdown started: Source={Source}", source);
                 DisableTrayForShutdown();
                 ExitNoTraceModeForShutdown();
                 DisposeQuickAccessManager();

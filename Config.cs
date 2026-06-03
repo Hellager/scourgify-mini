@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using Serilog;
 using Tomlyn;
 using Tomlyn.Model;
 
@@ -27,6 +28,11 @@ namespace ScourgifyMini
         private static readonly string ConfigPath = Path.Combine(
             Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location),
             "config.toml");
+
+        internal static string FilePath
+        {
+            get { return ConfigPath; }
+        }
 
         public static Config Load()
         {
@@ -60,12 +66,14 @@ namespace ScourgifyMini
 
                     return config;
                 }
-                catch
+                catch (System.Exception ex)
                 {
+                    Log.Warning(ex, "Failed to load config file, creating default config: {ConfigPath}", ConfigPath);
                     return CreateDefaultConfig();
                 }
             }
 
+            Log.Information("Config file not found, creating default config: {ConfigPath}", ConfigPath);
             return CreateDefaultConfig();
         }
 
@@ -85,6 +93,10 @@ namespace ScourgifyMini
                 Language = GetDefaultLanguage()
             };
 
+            Log.Information(
+                "Creating default config: ConfigPath={ConfigPath}, Language={Language}",
+                ConfigPath,
+                config.Language);
             Save(config);
             return config;
         }
@@ -207,9 +219,9 @@ namespace ScourgifyMini
                 string tomlString = TomlSerializer.Serialize(tomlTable);
                 File.WriteAllText(ConfigPath, tomlString);
             }
-            catch
+            catch (System.Exception ex)
             {
-                // failed to save config file, ignore failure
+                Log.Warning(ex, "Failed to save config file: {ConfigPath}", ConfigPath);
             }
         }
     }
