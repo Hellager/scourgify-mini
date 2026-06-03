@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using Tomlyn;
 using Tomlyn.Model;
@@ -7,6 +8,8 @@ namespace ScourgifyMini
 {
     internal class Config
     {
+        private const string DefaultLanguage = "en-US";
+
         public string Language { get; set; } = "en-US";
         public bool AutoStart { get; set; } = false;
         public bool NoTraceMode { get; set; } = false;
@@ -34,9 +37,9 @@ namespace ScourgifyMini
                     string tomlString = File.ReadAllText(ConfigPath);
                     var tomlTable = TomlSerializer.Deserialize<TomlTable>(tomlString);
 
-                    return new Config
+                    var config = new Config
                     {
-                        Language = GetValueOrDefault<string>(tomlTable, "Language", "en-US"),
+                        Language = GetValueOrDefault<string>(tomlTable, "Language", DefaultLanguage),
                         AutoStart = GetValueOrDefault<bool>(tomlTable, "AutoStart", false),
                         NoTraceMode = GetValueOrDefault(
                             tomlTable,
@@ -47,6 +50,15 @@ namespace ScourgifyMini
                             "CleanupNewRecentLinksOnUnlock",
                             true)
                     };
+
+                    string normalizedLanguage = NormalizeLanguage(config.Language);
+                    if (config.Language != normalizedLanguage)
+                    {
+                        config.Language = normalizedLanguage;
+                        Save(config);
+                    }
+
+                    return config;
                 }
                 catch
                 {
@@ -68,20 +80,122 @@ namespace ScourgifyMini
 
         private static Config CreateDefaultConfig()
         {
-            var config = new Config();
-            if (System.Globalization.CultureInfo.CurrentUICulture.Name.StartsWith("zh"))
+            var config = new Config
             {
-                config.Language = "zh-CN";
-            }
+                Language = GetDefaultLanguage()
+            };
 
             Save(config);
             return config;
+        }
+
+        public static bool IsSupportedLanguage(string language)
+        {
+            return GetSupportedLanguageCode(language) != null;
+        }
+
+        public static string NormalizeLanguage(string language)
+        {
+            if (string.IsNullOrWhiteSpace(language))
+            {
+                return GetDefaultLanguage();
+            }
+
+            string trimmedLanguage = language.Trim();
+            string supportedLanguage = GetSupportedLanguageCode(trimmedLanguage);
+            if (supportedLanguage != null)
+            {
+                return supportedLanguage;
+            }
+
+            string lowerLanguage = trimmedLanguage.ToLowerInvariant();
+            if (lowerLanguage == "en")
+                return "en-US";
+            if (lowerLanguage == "fr")
+                return "fr-FR";
+            if (lowerLanguage == "ru")
+                return "ru-RU";
+            if (lowerLanguage == "zh")
+                return GetDefaultChineseLanguage();
+            if (lowerLanguage.StartsWith("zh-"))
+                return GetChineseLanguage(trimmedLanguage);
+
+            try
+            {
+                var culture = CultureInfo.GetCultureInfo(trimmedLanguage);
+                if (culture.Name.StartsWith("zh", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    return GetChineseLanguage(culture.Name);
+                }
+            }
+            catch (CultureNotFoundException)
+            {
+            }
+
+            return GetDefaultLanguage();
+        }
+
+        public static string GetDefaultLanguage()
+        {
+            var culture = CultureInfo.CurrentUICulture;
+            string supportedLanguage = GetSupportedLanguageCode(culture.Name);
+            if (supportedLanguage != null)
+            {
+                return supportedLanguage;
+            }
+
+            switch (culture.TwoLetterISOLanguageName.ToLowerInvariant())
+            {
+                case "zh":
+                    return GetChineseLanguage(culture.Name);
+                case "fr":
+                    return "fr-FR";
+                case "ru":
+                    return "ru-RU";
+                case "en":
+                    return "en-US";
+                default:
+                    return DefaultLanguage;
+            }
+        }
+
+        private static string GetSupportedLanguageCode(string language)
+        {
+            foreach (var supportedLanguage in SupportedLanguages)
+            {
+                if (string.Equals(supportedLanguage.Code, language, System.StringComparison.OrdinalIgnoreCase))
+                {
+                    return supportedLanguage.Code;
+                }
+            }
+
+            return null;
+        }
+
+        private static string GetDefaultChineseLanguage()
+        {
+            return GetChineseLanguage(CultureInfo.CurrentUICulture.Name);
+        }
+
+        private static string GetChineseLanguage(string cultureName)
+        {
+            string lowerCultureName = cultureName.ToLowerInvariant();
+            if (lowerCultureName == "zh-tw" ||
+                lowerCultureName == "zh-hk" ||
+                lowerCultureName == "zh-mo" ||
+                lowerCultureName.StartsWith("zh-hant"))
+            {
+                return "zh-TW";
+            }
+
+            return "zh-CN";
         }
 
         public static void Save(Config config)
         {
             try
             {
+                config.Language = NormalizeLanguage(config.Language);
                 var tomlTable = new TomlTable
                 {
                     ["Language"] = config.Language,

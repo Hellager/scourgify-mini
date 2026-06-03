@@ -138,6 +138,9 @@
   <data name="IncognitoMode" xml:space="preserve">
     <value>No Trace Mode</value>
   </data>
+  <data name="InitializationFailed" xml:space="preserve">
+    <value>Application initialization failed</value>
+  </data>
   <data name="Language" xml:space="preserve">
     <value>Language</value>
   </data>

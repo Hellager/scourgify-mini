@@ -138,6 +138,9 @@
   <data name="IncognitoMode" xml:space="preserve">
     <value>無痕模式</value>
   </data>
+  <data name="InitializationFailed" xml:space="preserve">
+    <value>應用程式初始化失敗</value>
+  </data>
   <data name="Language" xml:space="preserve">
     <value>語言</value>
   </data>

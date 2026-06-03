@@ -26,6 +26,7 @@ namespace ScourgifyMini
         
         private NotifyIcon trayIcon;
         private Config config;
+        private AboutWindow aboutWindow;
 
         private ToolStripMenuItem languageMenu;
         private ToolStripMenuItem noTraceModeItem;
@@ -85,7 +86,7 @@ namespace ScourgifyMini
                     await Application.Current.Dispatcher.InvokeAsync(() =>
                     {
                         System.Windows.MessageBox.Show(
-                            "Application initialization failed",
+                            Properties.Resources.InitializationFailed,
                             Properties.Resources.Warning,
                             MessageBoxButton.OK,
                             MessageBoxImage.Error);
@@ -166,7 +167,8 @@ namespace ScourgifyMini
 
         private void InitializeLanguage()
         {
-            var culture = new CultureInfo(config.Language);
+            config.Language = Config.NormalizeLanguage(config.Language);
+            var culture = CultureInfo.GetCultureInfo(config.Language);
             Thread.CurrentThread.CurrentCulture = culture;
             Thread.CurrentThread.CurrentUICulture = culture;
             Properties.Resources.Culture = culture;
@@ -174,10 +176,6 @@ namespace ScourgifyMini
 
         private void InitializeTrayIcon()
         {
-            Thread.CurrentThread.CurrentCulture = new CultureInfo(config.Language);
-            Thread.CurrentThread.CurrentUICulture = new CultureInfo(config.Language);
-            Properties.Resources.Culture = new CultureInfo(config.Language);
-
             trayIcon = new NotifyIcon
             {
                 Icon = System.Drawing.Icon.ExtractAssociatedIcon(System.Reflection.Assembly.GetExecutingAssembly().Location),
@@ -260,8 +258,6 @@ namespace ScourgifyMini
 
         private void RefreshMenuTexts()
         {
-            Properties.Resources.Culture = new CultureInfo(config.Language);
-            
             var contextMenu = trayIcon.ContextMenuStrip;
             if (contextMenu != null)
             {
@@ -281,6 +277,16 @@ namespace ScourgifyMini
 
                 if (contextMenu.Items[6] is ToolStripMenuItem exitItem)
                     exitItem.Text = Properties.Resources.Exit;
+            }
+
+            foreach (var languageItem in languageItems)
+            {
+                languageItem.Value.Checked = languageItem.Key == config.Language;
+            }
+
+            if (aboutWindow != null)
+            {
+                aboutWindow.RefreshLocalizedText();
             }
         }
 
@@ -402,8 +408,15 @@ namespace ScourgifyMini
 
         private void OnAboutClick(object sender, EventArgs e)
         {
-            AboutWindow aboutWindow = new AboutWindow();
-            aboutWindow.ShowDialog();
+            if (aboutWindow != null)
+            {
+                aboutWindow.Activate();
+                return;
+            }
+
+            aboutWindow = new AboutWindow();
+            aboutWindow.Closed += (closedSender, args) => aboutWindow = null;
+            aboutWindow.Show();
         }
 
         private void OnExitClick(object sender, EventArgs e)

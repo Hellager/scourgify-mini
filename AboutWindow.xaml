@@ -3,31 +3,28 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:ScourgifyMini"
-        xmlns:properties="clr-namespace:ScourgifyMini.Properties"
         mc:Ignorable="d"
-        Title="{x:Static properties:Resources.About}" 
         Height="282" 
         Width="239"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize">
     <Grid Margin="20">
         <StackPanel>
-            <TextBlock Text="{x:Static properties:Resources.AboutDescription}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+            <TextBlock x:Name="AboutDescriptionTextBlock" TextWrapping="Wrap" Margin="0,0,0,10"/>
             <TextBlock Text="{Binding Version}" Margin="0,0,0,10"/>
 
             <StackPanel Orientation="Horizontal" Margin="0,5,0,5">
-                <TextBlock Text="{x:Static properties:Resources.DevelopedBy}" Margin="0,0,5,0"/>
+                <TextBlock x:Name="DevelopedByLabel" Margin="0,0,5,0"/>
                 <TextBlock Text="Stein Gu"/>
             </StackPanel>
 
             <StackPanel Orientation="Horizontal" Margin="0,5,0,5">
-                <TextBlock Text="{x:Static properties:Resources.License}" Margin="0,0,5,0"/>
+                <TextBlock x:Name="LicenseLabel" Margin="0,0,5,0"/>
                 <TextBlock Text="MIT"/>
             </StackPanel>
 
             <StackPanel Orientation="Horizontal" Margin="0,5,0,5">
-                <TextBlock Text="{x:Static properties:Resources.ProjectPage}" Margin="0,0,5,0"/>
+                <TextBlock x:Name="ProjectPageLabel" Margin="0,0,5,0"/>
                 <TextBlock>
                     <Hyperlink NavigateUri="https://github.com/Hellager/scourgify-mini" RequestNavigate="Hyperlink_RequestNavigate">
                         ScourgifyMini
@@ -36,7 +33,7 @@
             </StackPanel>
 
             <TextBlock Text="© 2023 Stein Gu" Margin="0,10,0,0"/>
-            <TextBlock Text="{x:Static properties:Resources.AllRightsReserved}"/>
+            <TextBlock x:Name="AllRightsReservedTextBlock"/>
         </StackPanel>
     </Grid>
 </Window>

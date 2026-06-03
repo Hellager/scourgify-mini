@@ -151,6 +151,15 @@ namespace ScourgifyMini.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Application initialization failed.
+        /// </summary>
+        public static string InitializationFailed {
+            get {
+                return ResourceManager.GetString("InitializationFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Language.
         /// </summary>
         public static string Language {

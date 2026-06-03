@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Navigation;
@@ -22,6 +20,17 @@ namespace ScourgifyMini
             Version = $"v{Assembly.GetExecutingAssembly().GetName().Version}";
 
             DataContext = this;
+            RefreshLocalizedText();
+        }
+
+        public void RefreshLocalizedText()
+        {
+            Title = Properties.Resources.About;
+            AboutDescriptionTextBlock.Text = Properties.Resources.AboutDescription;
+            DevelopedByLabel.Text = Properties.Resources.DevelopedBy;
+            LicenseLabel.Text = Properties.Resources.License;
+            ProjectPageLabel.Text = Properties.Resources.ProjectPage;
+            AllRightsReservedTextBlock.Text = Properties.Resources.AllRightsReserved;
         }
 
         private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)

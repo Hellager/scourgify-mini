@@ -119,6 +119,9 @@
 	<data name="IncognitoMode" xml:space="preserve">
 		<value>Режим без следов</value>
 	</data>
+	<data name="InitializationFailed" xml:space="preserve">
+		<value>Не удалось инициализировать приложение</value>
+	</data>
 	<data name="Language" xml:space="preserve">
 		<value>Язык</value>
 	</data>
