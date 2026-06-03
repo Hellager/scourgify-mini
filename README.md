@@ -1,16 +1,37 @@
-# scourgify-mini
+# ScourgifyMini
 
-ScourgifyMini is a lightweight tray utility for privacy-focused Windows Quick Access cleanup.
+Read this in other languages: [English](README.md) | [中文](README.zh-CN.md)
+
+ScourgifyMini is a lightweight Windows tray utility that enables Incognito Mode for Windows Quick Access.
+
+While Incognito Mode is enabled, Windows Quick Access, including recent files and frequent folders, will not receive new items.
+
+## Features
+
+- No installation required, portable use
+- Isolated data, easy to clean up
+- One-click incognito mode for privacy protection
 
 ## Requirements
 
 - Windows 10 or Windows 11
 - .NET Framework 4.8
-- Wincent 0.2.4
 
-## Behavior
+## Usage
 
-- Runs as a single-instance tray application.
-- Supports auto-start and localized tray menu text.
-- Incognito Mode locks all Windows Quick Access backing files while enabled.
-- When Incognito Mode is turned off or the app exits, it unlocks Quick Access and removes newly created Windows Recent `.lnk` shortcuts by default.
+1. Run `ScourgifyMini.exe`.
+2. Use the tray icon menu to toggle:
+   - **Launch at startup**
+   - **Incognito Mode**
+   - **Language**
+3. Exit from the tray menu.
+
+## Build
+
+Open `ScourgifyMini.sln` in Visual Studio, or build it with an MSBuild version that supports .NET Framework WPF projects and Fody 6.x.
+
+The project targets .NET Framework 4.8 and uses Costura.Fody to package managed dependencies.
+
+## License
+
+MIT
