@@ -9,9 +9,8 @@ namespace CleanRecentMini
     {
         public string Language { get; set; } = "en-US";
         public bool AutoStart { get; set; } = false;
-        public bool IncognitoMode { get; set; } = false;
-        public bool QueryFeasible { get; set; } = false;
-        public bool HandleFeasible { get; set; } = false;
+        public bool NoTraceMode { get; set; } = false;
+        public bool CleanupNewRecentLinksOnUnlock { get; set; } = true;
 
         public static readonly List<LanguageInfo> SupportedLanguages = new List<LanguageInfo>
         {
@@ -33,15 +32,20 @@ namespace CleanRecentMini
                 try
                 {
                     string tomlString = File.ReadAllText(ConfigPath);
-                    var tomlTable = Toml.ToModel(tomlString);
+                    var tomlTable = TomlSerializer.Deserialize<TomlTable>(tomlString);
 
                     return new Config
                     {
                         Language = GetValueOrDefault<string>(tomlTable, "Language", "en-US"),
                         AutoStart = GetValueOrDefault<bool>(tomlTable, "AutoStart", false),
-                        IncognitoMode = GetValueOrDefault<bool>(tomlTable, "IncognitoMode", false),
-                        QueryFeasible = GetValueOrDefault<bool>(tomlTable, "QueryFeasible", false),
-                        HandleFeasible = GetValueOrDefault<bool>(tomlTable, "HandleFeasible", false)
+                        NoTraceMode = GetValueOrDefault(
+                            tomlTable,
+                            "NoTraceMode",
+                            GetValueOrDefault<bool>(tomlTable, "IncognitoMode", false)),
+                        CleanupNewRecentLinksOnUnlock = GetValueOrDefault<bool>(
+                            tomlTable,
+                            "CleanupNewRecentLinksOnUnlock",
+                            true)
                     };
                 }
                 catch
@@ -82,12 +86,11 @@ namespace CleanRecentMini
                 {
                     ["Language"] = config.Language,
                     ["AutoStart"] = config.AutoStart,
-                    ["IncognitoMode"] = config.IncognitoMode,
-                    ["QueryFeasible"] = config.QueryFeasible,
-                    ["HandleFeasible"] = config.HandleFeasible
+                    ["NoTraceMode"] = config.NoTraceMode,
+                    ["CleanupNewRecentLinksOnUnlock"] = config.CleanupNewRecentLinksOnUnlock
                 };
 
-                string tomlString = Toml.FromModel(tomlTable);
+                string tomlString = TomlSerializer.Serialize(tomlTable);
                 File.WriteAllText(ConfigPath, tomlString);
             }
             catch

@@ -145,7 +145,7 @@
     <value>Handle</value>
   </data>
   <data name="IncognitoMode" xml:space="preserve">
-    <value>Incognito Mode</value>
+    <value>No Trace Mode</value>
   </data>
   <data name="Language" xml:space="preserve">
     <value>Language</value>

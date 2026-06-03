@@ -26,19 +26,13 @@ namespace CleanRecentMini
         
         private NotifyIcon trayIcon;
         private Config config;
-        private FileSystemWatcher automaticDestinationsWatcher;
-        private const string FOLDERS_APPID = "f01b4d95cf55d32a";
-        private const string RECENT_FILES_APPID = "5f7b5f1e01b83767";
 
         private ToolStripMenuItem languageMenu;
+        private ToolStripMenuItem noTraceModeItem;
         private Dictionary<string, ToolStripMenuItem> languageItems = new Dictionary<string, ToolStripMenuItem>();
 
-        private List<string> _currentRecentFiles = new List<string>();
-        private List<string> _currentFrequentFolders = new List<string>();
-
-        private readonly object _processingLock = new object();
-        private bool _isProcessing = false;
-        private IQuickAccessManager _quickAccessManager;
+        private QuickAccessManager _quickAccessManager;
+        private QuickAccessLock _quickAccessLock;
 
         private bool _disposed = false;
 
@@ -60,54 +54,28 @@ namespace CleanRecentMini
             }
 
             InitializeLogger();
-            _quickAccessManager = new QuickAccessManager();
+            _quickAccessManager = new QuickAccessManager(new QuickAccessManagerOptions
+            {
+                Timeout = TimeSpan.FromSeconds(10),
+                RetryPolicy = RetryPolicy.Standard
+            });
             
             Task.Run(async () =>
             {
                 try 
                 {
-                    await Application.Current.Dispatcher.InvokeAsync(async () =>
+                    await Application.Current.Dispatcher.InvokeAsync(() =>
                     {
                         config = Config.Load();
-                        if (!config.QueryFeasible || !config.HandleFeasible)
-                        {
-                            var (queryFeasible, handleFeasible) = await _quickAccessManager.CheckFeasibleAsync();
-                            config.QueryFeasible = queryFeasible;
-                            config.HandleFeasible = handleFeasible;
-                            Log.Information("Feasibility check completed: Query={query}, Handle={handle}", queryFeasible, handleFeasible);
-                            Config.Save(config);
-                        }
                         UpdateAutoStart(config.AutoStart);
-
-                        bool hasFunctionLimitation = !config.QueryFeasible || !config.HandleFeasible;
-                        if (hasFunctionLimitation)
-                        {
-                            var limitedFeatures = new List<string>();
-                            if (!config.QueryFeasible)
-                                limitedFeatures.Add(Properties.Resources.Query);
-                            if (!config.HandleFeasible)
-                                limitedFeatures.Add(Properties.Resources.Handle);
-
-                            var message = string.Format(
-                                Properties.Resources.CoreFunctionLimitedError,
-                                string.Join("/", limitedFeatures));
-
-                            Log.Warning("Function limitations detected: {Features}", string.Join("/", limitedFeatures));
-
-                            System.Windows.MessageBox.Show(
-                                message,
-                                Properties.Resources.Warning,
-                                MessageBoxButton.OK,
-                                MessageBoxImage.Warning);
-                        }
 
                         InitializeLanguage();
                         InitializeComponent();
-                        InitializeTrayIcon(hasFunctionLimitation);
+                        InitializeTrayIcon();
                         
-                        if (config.IncognitoMode && !hasFunctionLimitation)
+                        if (config.NoTraceMode)
                         {
-                            StartWatching();
+                            StartNoTraceModeFromStartup();
                         }
                     });
                 }
@@ -157,11 +125,15 @@ namespace CleanRecentMini
                         _mutex = null;
                     }
 
-                    if (automaticDestinationsWatcher != null)
+                    if (_quickAccessLock != null)
                     {
-                        automaticDestinationsWatcher.EnableRaisingEvents = false;
-                        automaticDestinationsWatcher.Dispose();
-                        automaticDestinationsWatcher = null;
+                        ExitNoTraceMode();
+                    }
+
+                    if (_quickAccessManager != null)
+                    {
+                        _quickAccessManager.Dispose();
+                        _quickAccessManager = null;
                     }
                 }
 
@@ -200,7 +172,7 @@ namespace CleanRecentMini
             Properties.Resources.Culture = culture;
         }
 
-        private void InitializeTrayIcon(bool hasFunctionLimitation)
+        private void InitializeTrayIcon()
         {
             Thread.CurrentThread.CurrentCulture = new CultureInfo(config.Language);
             Thread.CurrentThread.CurrentUICulture = new CultureInfo(config.Language);
@@ -221,13 +193,13 @@ namespace CleanRecentMini
                 Checked = config.AutoStart,
                 CheckOnClick = true
             };
-            var incognitoModeItem = new ToolStripMenuItem(
+            noTraceModeItem = new ToolStripMenuItem(
                 Properties.Resources.IncognitoMode,
-                null, OnIncognitoModeClick)
+                null, OnNoTraceModeClick)
             {
-                Checked = config.IncognitoMode && !hasFunctionLimitation,
+                Checked = config.NoTraceMode,
                 CheckOnClick = true,
-                Enabled = !hasFunctionLimitation
+                Enabled = true
             };
 
             languageMenu = new ToolStripMenuItem(Properties.Resources.Language);
@@ -255,7 +227,7 @@ namespace CleanRecentMini
             contextMenu.Items.AddRange(new ToolStripItem[]
             {
                 autoStartItem,
-                incognitoModeItem,
+                noTraceModeItem,
                 new ToolStripSeparator(),
                 languageMenu,
                 aboutItem,
@@ -320,19 +292,111 @@ namespace CleanRecentMini
             Config.Save(config);
         }
 
-        private void OnIncognitoModeClick(object sender, EventArgs e)
+        private async void OnNoTraceModeClick(object sender, EventArgs e)
         {
             var menuItem = sender as ToolStripMenuItem;
-            config.IncognitoMode = menuItem.Checked;
-            Config.Save(config);
+            if (menuItem == null)
+                return;
 
-            if (config.IncognitoMode)
+            menuItem.Enabled = false;
+            try
             {
-                StartWatching();
+                if (menuItem.Checked)
+                {
+                    await EnterNoTraceModeAsync();
+                    config.NoTraceMode = true;
+                }
+                else
+                {
+                    await ExitNoTraceModeAsync();
+                    config.NoTraceMode = false;
+                }
+
+                Config.Save(config);
             }
-            else
+            catch (Exception ex)
             {
-                StopWatching();
+                Log.Error(ex, "Failed to change no-trace mode");
+                menuItem.Checked = config.NoTraceMode;
+                System.Windows.MessageBox.Show(
+                    ex.Message,
+                    Properties.Resources.Warning,
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+            finally
+            {
+                menuItem.Enabled = true;
+            }
+        }
+
+        private async void StartNoTraceModeFromStartup()
+        {
+            try
+            {
+                await EnterNoTraceModeAsync();
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to start no-trace mode from saved config");
+                config.NoTraceMode = false;
+                Config.Save(config);
+
+                if (noTraceModeItem != null)
+                {
+                    noTraceModeItem.Checked = false;
+                }
+            }
+        }
+
+        private Task EnterNoTraceModeAsync()
+        {
+            return Task.Run(() => EnterNoTraceMode());
+        }
+
+        private Task ExitNoTraceModeAsync()
+        {
+            return Task.Run(() => ExitNoTraceMode());
+        }
+
+        private void EnterNoTraceMode()
+        {
+            if (_quickAccessLock != null)
+                return;
+
+            _quickAccessLock = _quickAccessManager.LockQuickAccess();
+            Log.Information(
+                "No-trace mode started: Target={Target}, LockedFileCount={LockedFileCount}, InitialShortcutCount={InitialShortcutCount}",
+                _quickAccessLock.Target,
+                _quickAccessLock.LockedFileCount,
+                _quickAccessLock.InitialShortcutPaths.Count);
+        }
+
+        private void ExitNoTraceMode()
+        {
+            var quickAccessLock = _quickAccessLock;
+            if (quickAccessLock == null)
+                return;
+
+            _quickAccessLock = null;
+            var report = quickAccessLock.Unlock(new QuickAccessUnlockOptions
+            {
+                CleanupNewRecentLinks = config == null || config.CleanupNewRecentLinksOnUnlock
+            });
+
+            Log.Information(
+                "No-trace mode stopped: CurrentShortcutCount={CurrentShortcutCount}, NewShortcutCount={NewShortcutCount}, DeletedShortcutCount={DeletedShortcutCount}, FailedShortcutDeletionCount={FailedShortcutDeletionCount}",
+                report.CurrentShortcutPaths.Count,
+                report.NewShortcutPaths.Count,
+                report.DeletedShortcutPaths.Count,
+                report.FailedShortcutDeletions.Count);
+
+            foreach (var failure in report.FailedShortcutDeletions)
+            {
+                Log.Warning(
+                    failure.Error,
+                    "Failed to delete new Recent shortcut during no-trace unlock: {Path}",
+                    failure.Path);
             }
         }
 
@@ -356,6 +420,17 @@ namespace CleanRecentMini
                 _mutex = null;
             }
 
+            if (_quickAccessLock != null)
+            {
+                ExitNoTraceMode();
+            }
+
+            if (_quickAccessManager != null)
+            {
+                _quickAccessManager.Dispose();
+                _quickAccessManager = null;
+            }
+
             System.Windows.Application.Current.Shutdown();
         }
 
@@ -377,314 +452,5 @@ namespace CleanRecentMini
             }
         }
 
-        private async void StartWatching()
-        {
-            if (automaticDestinationsWatcher != null) return;
-
-            try
-            {
-                await RefreshCurrentQuickAccessItems();
-
-                string automaticDestPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    @"Microsoft\Windows\Recent\AutomaticDestinations");
-
-                if (!Directory.Exists(automaticDestPath))
-                {
-                    Log.Warning("Cannot monitor Quick Access: Directory does not exist - {Path}", automaticDestPath);
-                    return;
-                }
-
-                automaticDestinationsWatcher = new FileSystemWatcher
-                {
-                    Path = automaticDestPath,
-                    NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName,
-                    Filter = "*.automaticDestinations-ms"
-                };
-
-                automaticDestinationsWatcher.Changed += OnAutomaticDestinationsChanged;
-                automaticDestinationsWatcher.Created += OnAutomaticDestinationsChanged;
-                automaticDestinationsWatcher.EnableRaisingEvents = true;
-
-                Log.Information("Started monitoring Quick Access changes");
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Error starting monitoring");
-            }
-        }
-
-        private void StopWatching()
-        {
-            if (automaticDestinationsWatcher != null)
-            {
-                automaticDestinationsWatcher.EnableRaisingEvents = false;
-                automaticDestinationsWatcher.Dispose();
-                automaticDestinationsWatcher = null;
-
-                _currentRecentFiles.Clear();
-                _currentFrequentFolders.Clear();
-
-                Log.Information("Stopped monitoring Quick Access changes");
-            }
-        }
-
-        private async Task RefreshCurrentQuickAccessItems()
-        {
-            try
-            {
-                _currentRecentFiles = await _quickAccessManager.GetItemsAsync(QuickAccess.RecentFiles);
-                _currentFrequentFolders = await _quickAccessManager.GetItemsAsync(QuickAccess.FrequentFolders);
-
-                Log.Information("Quick Access items refreshed, Recent files count: {RecentFileCount}, Frequent folders count: {FrequentFolderCount}",
-                    _currentRecentFiles.Count, _currentFrequentFolders.Count);
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Error refreshing Quick Access items");
-            }
-        }
-
-        private async void OnAutomaticDestinationsChanged(object sender, FileSystemEventArgs e)
-        {
-            try
-            {
-                lock (_processingLock)
-                {
-                    if (_isProcessing) return;
-                    _isProcessing = true;
-                }
-
-                await Task.Delay(500);
-
-                string fileName = Path.GetFileNameWithoutExtension(e.Name);
-                if (string.IsNullOrEmpty(fileName)) return;
-
-                fileName = fileName.Replace(".automaticDestinations", "");
-
-                switch (fileName.ToLower())
-                {
-                    case FOLDERS_APPID:
-                        Log.Information("Frequent folders changed");
-                        if (config.IncognitoMode)
-                        {
-                            await ProcessFrequentFoldersChange();
-                        }
-                        break;
-
-                    case RECENT_FILES_APPID:
-                        Log.Information("Recent files changed");
-                        if (config.IncognitoMode)
-                        {
-                            await ProcessRecentFilesChange();
-                        }
-                        break;
-
-                    default:
-                        Log.Debug("Other Quick Access file changed: {FileName}", fileName);
-                        break;
-                }
-
-                Log.Debug("Change type: {ChangeType}, Full path: {FullPath}", e.ChangeType, e.FullPath);
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Error processing Quick Access changes");
-            }
-            finally
-            {
-                lock (_processingLock)
-                {
-                    _isProcessing = false;
-                }
-            }
-        }
-
-        private async Task ProcessRecentFilesChange()
-        {
-            try
-            {
-                var oldRecentFiles = new List<string>(_currentRecentFiles);
-
-                var newRecentFiles = await _quickAccessManager.GetItemsAsync(QuickAccess.RecentFiles);
-
-                var addedFiles = newRecentFiles.Except(oldRecentFiles).ToList();
-
-                if (addedFiles.Count > 0)
-                {
-                    Log.Information("Detected {Count} new recent files", addedFiles.Count);
-
-                    var fileAccessTimes = new Dictionary<string, DateTime>();
-                    foreach (var file in newRecentFiles)
-                    {
-                        try
-                        {
-                            if (File.Exists(file))
-                            {
-                                fileAccessTimes[file] = File.GetLastAccessTime(file);
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Log.Warning(ex, "Failed to get file access time: {File}", file);
-                        }
-                    }
-
-                    DateTime mostRecentTime = DateTime.MinValue;
-                    string mostRecentFile = null;
-
-                    foreach (var file in fileAccessTimes.Keys)
-                    {
-                        if (fileAccessTimes[file] > mostRecentTime)
-                        {
-                            mostRecentTime = fileAccessTimes[file];
-                            mostRecentFile = file;
-                        }
-                    }
-
-                    foreach (var file in addedFiles)
-                    {
-                        Log.Debug("Checking new file: {File}", file);
-
-                        bool isRecentlyAccessed = false;
-
-                        if (fileAccessTimes.ContainsKey(file))
-                        {
-                            DateTime accessTime = fileAccessTimes[file];
-
-                            if (file == mostRecentFile || (mostRecentTime - accessTime).TotalSeconds <= 5)
-                            {
-                                isRecentlyAccessed = true;
-                                Log.Debug("File is recently accessed: {File}, Access time: {AccessTime}", file, accessTime);
-                            }
-                            else
-                            {
-                                Log.Debug("File is not recently accessed: {File}, Access time: {AccessTime}, Most recent time: {MostRecentTime}",
-                                    file, accessTime, mostRecentTime);
-                            }
-                        }
-                        else
-                        {
-                            Log.Warning("Cannot get file access time: {File}", file);
-                        }
-
-                        if (isRecentlyAccessed)
-                        {
-                            Log.Information("Removing new file: {File}", file);
-
-                            await _quickAccessManager.RemoveItemAsync(file, QuickAccess.RecentFiles);
-                        }
-                        else
-                        {
-                            Log.Debug("Skipping non-recent file: {File}", file);
-                        }
-                    }
-                }
-
-                _currentRecentFiles = await _quickAccessManager.GetItemsAsync(QuickAccess.RecentFiles);
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Error processing recent files changes");
-            }
-        }
-
-        private async Task ProcessFrequentFoldersChange()
-        {
-            try
-            {
-                var oldFrequentFolders = new List<string>(_currentFrequentFolders);
-
-                var newFrequentFolders = await _quickAccessManager.GetItemsAsync(QuickAccess.FrequentFolders);
-
-                var addedFolders = newFrequentFolders.Except(oldFrequentFolders).ToList();
-
-                if (addedFolders.Count > 0)
-                {
-                    Log.Information("Detected {Count} new frequent folders", addedFolders.Count);
-
-                    var folderAccessTimes = new Dictionary<string, DateTime>();
-                    foreach (var folder in newFrequentFolders)
-                    {
-                        try
-                        {
-                            if (Directory.Exists(folder))
-                            {
-                                folderAccessTimes[folder] = Directory.GetLastAccessTime(folder);
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Log.Warning(ex, "Failed to get folder access time: {Folder}", folder);
-                        }
-                    }
-
-                    DateTime mostRecentTime = DateTime.MinValue;
-                    string mostRecentFolder = null;
-
-                    foreach (var folder in folderAccessTimes.Keys)
-                    {
-                        if (folderAccessTimes[folder] > mostRecentTime)
-                        {
-                            mostRecentTime = folderAccessTimes[folder];
-                            mostRecentFolder = folder;
-                        }
-                    }
-
-                    foreach (var folder in addedFolders)
-                    {
-                        Log.Debug("Checking new folder: {Folder}", folder);
-
-                        bool isRecentlyAccessed = false;
-
-                        if (folderAccessTimes.ContainsKey(folder))
-                        {
-                            DateTime accessTime = folderAccessTimes[folder];
-
-                            if (folder == mostRecentFolder || (mostRecentTime - accessTime).TotalSeconds <= 5)
-                            {
-                                isRecentlyAccessed = true;
-                                Log.Debug("Folder is recently accessed: {Folder}, Access time: {AccessTime}", folder, accessTime);
-                            }
-                            else
-                            {
-                                Log.Debug("Folder is not recently accessed: {Folder}, Access time: {AccessTime}, Most recent time: {MostRecentTime}",
-                                    folder, accessTime, mostRecentTime);
-                            }
-                        }
-                        else
-                        {
-                            Log.Warning("Cannot get folder access time: {Folder}", folder);
-                        }
-
-                        if (isRecentlyAccessed)
-                        {
-                            Log.Information("Removing new folder: {Folder}", folder);
-
-                            await _quickAccessManager.RemoveItemAsync(folder, QuickAccess.FrequentFolders);
-                        }
-                        else
-                        {
-                            Log.Debug("Skipping non-recent folder: {Folder}", folder);
-                        }
-                    }
-
-                    int removedCount = addedFolders.Count(folder =>
-                        folderAccessTimes.ContainsKey(folder) &&
-                        (folder == mostRecentFolder || (mostRecentTime - folderAccessTimes[folder]).TotalSeconds <= 5));
-
-                    if (removedCount > 0)
-                    {
-                        Log.Information("Automatically removed {Count} frequent folders", removedCount);
-                    }
-                }
-
-                _currentFrequentFolders = await _quickAccessManager.GetItemsAsync(QuickAccess.FrequentFolders);
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Error processing frequent folders changes");
-            }
-        }
     }
 }

@@ -117,7 +117,7 @@
 		<value>Выход</value>
 	</data>
 	<data name="IncognitoMode" xml:space="preserve">
-		<value>Режим инкогнито</value>
+		<value>Режим без следов</value>
 	</data>
 	<data name="Language" xml:space="preserve">
 		<value>Язык</value>

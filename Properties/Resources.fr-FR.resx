@@ -117,7 +117,7 @@
 		<value>Quitter</value>
 	</data>
 	<data name="IncognitoMode" xml:space="preserve">
-		<value>Mode incognito</value>
+		<value>Mode sans traces</value>
 	</data>
 	<data name="Language" xml:space="preserve">
 		<value>Langue</value>
