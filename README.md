@@ -6,6 +6,8 @@ ScourgifyMini is a lightweight Windows tray utility that enables Incognito Mode 
 
 While Incognito Mode is enabled, Windows Quick Access, including recent files and frequent folders, will not receive new items.
 
+Note: After Incognito Mode is enabled, no new items will be added, but related items also cannot be deleted from Quick Access. To delete them, turn off Incognito Mode first.
+
 ## Features
 
 - No installation required, portable use

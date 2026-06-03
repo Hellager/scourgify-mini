@@ -1,10 +1,12 @@
-# ScourgifyMini
+# 几净Mini
 
 其他语言版本: [中文](README.zh-CN.md) | [English](README.md)
 
 ScourgifyMini 是一个轻量级 Windows 托盘工具，支持为 Window 快速访问开启无痕模式。
 
 在无痕模式开启期间 Windows 快速访问(包括最近使用的文件和常用文件夹)将不会有任何新增项。
+
+注意：开启无痕模式后不会有新增项，但同样无法再从快速访问中删除相关项；如需删除，请先关闭无痕模式。
 
 ## 功能
 

@@ -10,6 +10,23 @@
     various data types are done through the TypeConverter classes 
     associated with the data types.
     
+    Example:
+    
+    ... ado.net/XML headers & schema ...
+    <resheader name="resmimetype">text/microsoft-resx</resheader>
+    <resheader name="version">2.0</resheader>
+    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
+    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
+    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
+    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
+    <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
+        <value>[base64 mime encoded serialized .NET Framework object]</value>
+    </data>
+    <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
+        <comment>This is a comment</comment>
+    </data>
+                
     There are any number of "resheader" rows that contain simple 
     name/value pairs.
     
@@ -104,10 +121,13 @@
     <value>关于</value>
   </data>
   <data name="AboutDescription" xml:space="preserve">
-    <value>几净 mini 是一个轻量级托盘工具，用于清理 Windows 快速访问痕迹并保护隐私。启用无痕模式后，程序运行期间会尽量减少新的快速访问记录。</value>
+    <value>几净 mini 是一个轻量级托盘工具，支持为 Window 快速访问开启无痕模式。</value>
   </data>
   <data name="AllRightsReserved" xml:space="preserve">
     <value>All rights reserved.</value>
+  </data>
+  <data name="AlreadyRunning" xml:space="preserve">
+    <value>程序已在运行中</value>
   </data>
   <data name="AutoStart" xml:space="preserve">
     <value>开机启动</value>
@@ -115,11 +135,17 @@
   <data name="AutoStartUpdateFailed" xml:space="preserve">
     <value>写入开机自启动失败，请检查权限后重试。</value>
   </data>
+  <data name="CoreFunctionLimitedError" xml:space="preserve">
+    <value>核心功能{0}受限，相关功能已屏蔽</value>
+  </data>
   <data name="DevelopedBy" xml:space="preserve">
     <value>开发者</value>
   </data>
   <data name="Exit" xml:space="preserve">
     <value>退出</value>
+  </data>
+  <data name="Handle" xml:space="preserve">
+    <value>操作</value>
   </data>
   <data name="IncognitoMode" xml:space="preserve">
     <value>无痕模式</value>
@@ -136,19 +162,10 @@
   <data name="ProjectPage" xml:space="preserve">
     <value>项目地址</value>
   </data>
-  <data name="CoreFunctionLimitedError" xml:space="preserve">
-    <value>核心功能{0}受限，相关功能已屏蔽</value>
-  </data>
   <data name="Query" xml:space="preserve">
     <value>查询</value>
   </data>
-  <data name="Handle" xml:space="preserve">
-    <value>操作</value>
-  </data>
   <data name="Warning" xml:space="preserve">
     <value>警告</value>
-  </data>
-  <data name="AlreadyRunning" xml:space="preserve">
-    <value>程序已在运行中</value>
   </data>
 </root>
