@@ -129,6 +129,9 @@
   <data name="AutoStart" xml:space="preserve">
     <value>开机启动</value>
   </data>
+  <data name="AutoStartUpdateFailed" xml:space="preserve">
+    <value>写入开机自启动失败，请检查权限后重试。</value>
+  </data>
   <data name="DevelopedBy" xml:space="preserve">
     <value>开发者</value>
   </data>

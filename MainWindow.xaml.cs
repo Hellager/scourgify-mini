@@ -1,15 +1,15 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Linq;
 using System.Windows;
 using System.Windows.Forms;
 using Microsoft.Win32;
-using Wincent;
 using Serilog;
+using Wincent;
 using Application = System.Windows.Application;
 using NotifyIcon = System.Windows.Forms.NotifyIcon;
 
@@ -23,82 +23,82 @@ namespace ScourgifyMini
     {
         private static Mutex _mutex = null;
         private const string MutexName = "ScourgifyMini_SingleInstance_Mutex";
-        
+
         private NotifyIcon trayIcon;
         private Config config;
         private AboutWindow aboutWindow;
 
+        private ToolStripMenuItem autoStartItem;
         private ToolStripMenuItem languageMenu;
         private ToolStripMenuItem noTraceModeItem;
-        private Dictionary<string, ToolStripMenuItem> languageItems = new Dictionary<string, ToolStripMenuItem>();
+        private ToolStripMenuItem aboutItem;
+        private ToolStripMenuItem exitItem;
+        private readonly Dictionary<string, ToolStripMenuItem> languageItems = new Dictionary<string, ToolStripMenuItem>();
 
         private QuickAccessManager _quickAccessManager;
         private QuickAccessLock _quickAccessLock;
 
+        private readonly object _shutdownLock = new object();
+        private readonly SemaphoreSlim _noTraceModeSemaphore = new SemaphoreSlim(1, 1);
+        private bool _ownsMutex = false;
+        private bool _shutdownStarted = false;
+        private bool _shutdownCompleted = false;
         private bool _disposed = false;
 
         public MainWindow()
         {
-            bool createdNew;
-            _mutex = new Mutex(true, MutexName, out createdNew);
-
-            if (!createdNew)
+            try
             {
-                Log.Warning("Another instance is already running");
+                InitializeLogger();
+
+                bool createdNew;
+                _mutex = new Mutex(true, MutexName, out createdNew);
+                _ownsMutex = createdNew;
+
+                if (!createdNew)
+                {
+                    Log.Warning("Another instance is already running");
+                    System.Windows.MessageBox.Show(
+                        Properties.Resources.AlreadyRunning,
+                        Properties.Resources.Warning,
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                    _mutex.Dispose();
+                    _mutex = null;
+                    Application.Current.Shutdown();
+                    return;
+                }
+
+                config = Config.Load();
+                InitializeLanguage();
+                InitializeComponent();
+                Closing += OnWindowClosing;
+                Closed += OnWindowClosed;
+
+                _quickAccessManager = new QuickAccessManager(new QuickAccessManagerOptions
+                {
+                    Timeout = TimeSpan.FromSeconds(10),
+                    RetryPolicy = RetryPolicy.Standard
+                });
+
+                SynchronizeAutoStartOnStartup();
+                InitializeTrayIcon();
+
+                if (config.NoTraceMode)
+                {
+                    StartNoTraceModeFromStartup();
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error during initialization");
                 System.Windows.MessageBox.Show(
-                    Properties.Resources.AlreadyRunning,
+                    Properties.Resources.InitializationFailed,
                     Properties.Resources.Warning,
                     MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
-                Application.Current.Shutdown();
-                return;
+                    MessageBoxImage.Error);
+                ShutdownApplication();
             }
-
-            InitializeLogger();
-            _quickAccessManager = new QuickAccessManager(new QuickAccessManagerOptions
-            {
-                Timeout = TimeSpan.FromSeconds(10),
-                RetryPolicy = RetryPolicy.Standard
-            });
-            
-            Task.Run(async () =>
-            {
-                try 
-                {
-                    await Application.Current.Dispatcher.InvokeAsync(() =>
-                    {
-                        config = Config.Load();
-                        UpdateAutoStart(config.AutoStart);
-
-                        InitializeLanguage();
-                        InitializeComponent();
-                        InitializeTrayIcon();
-                        
-                        if (config.NoTraceMode)
-                        {
-                            StartNoTraceModeFromStartup();
-                        }
-                    });
-                }
-                catch (Exception ex)
-                {
-                    Log.Error(ex, "Error during initialization");
-                    await Application.Current.Dispatcher.InvokeAsync(() =>
-                    {
-                        System.Windows.MessageBox.Show(
-                            Properties.Resources.InitializationFailed,
-                            Properties.Resources.Warning,
-                            MessageBoxButton.OK,
-                            MessageBoxImage.Error);
-                        Application.Current.Shutdown();
-                    });
-                }
-            });
-        }
-
-        ~MainWindow()
-        {
-            Dispose(false);
         }
 
         public void Dispose()
@@ -109,37 +109,10 @@ namespace ScourgifyMini
 
         protected virtual void Dispose(bool disposing)
         {
-            if (!_disposed)
-            {
-                if (disposing)
-                {
-                    if (trayIcon != null)
-                    {
-                        trayIcon.Visible = false;
-                        trayIcon.Dispose();
-                    }
+            if (!disposing || _disposed)
+                return;
 
-                    if (_mutex != null)
-                    {
-                        _mutex.ReleaseMutex();
-                        _mutex.Dispose();
-                        _mutex = null;
-                    }
-
-                    if (_quickAccessLock != null)
-                    {
-                        ExitNoTraceMode();
-                    }
-
-                    if (_quickAccessManager != null)
-                    {
-                        _quickAccessManager.Dispose();
-                        _quickAccessManager = null;
-                    }
-                }
-
-                _disposed = true;
-            }
+            ShutdownApplication();
         }
 
         private void InitializeLogger()
@@ -174,6 +147,20 @@ namespace ScourgifyMini
             Properties.Resources.Culture = culture;
         }
 
+        private void SynchronizeAutoStartOnStartup()
+        {
+            Exception error;
+            if (TryUpdateAutoStart(config.AutoStart, out error))
+                return;
+
+            Log.Warning(error, "Failed to synchronize auto-start registration during startup");
+            if (config.AutoStart)
+            {
+                config.AutoStart = false;
+                Config.Save(config);
+            }
+        }
+
         private void InitializeTrayIcon()
         {
             trayIcon = new NotifyIcon
@@ -184,13 +171,14 @@ namespace ScourgifyMini
 
             var contextMenu = new ContextMenuStrip();
 
-            var autoStartItem = new ToolStripMenuItem(
+            autoStartItem = new ToolStripMenuItem(
                 Properties.Resources.AutoStart,
                 null, OnAutoStartClick)
             {
                 Checked = config.AutoStart,
                 CheckOnClick = true
             };
+
             noTraceModeItem = new ToolStripMenuItem(
                 Properties.Resources.IncognitoMode,
                 null, OnNoTraceModeClick)
@@ -214,11 +202,11 @@ namespace ScourgifyMini
                 languageItems[lang.Code] = langItem;
             }
 
-            var aboutItem = new ToolStripMenuItem(
+            aboutItem = new ToolStripMenuItem(
                 Properties.Resources.About,
                 null, OnAboutClick);
 
-            var exitItem = new ToolStripMenuItem(
+            exitItem = new ToolStripMenuItem(
                 Properties.Resources.Exit,
                 null, OnExitClick);
 
@@ -239,45 +227,38 @@ namespace ScourgifyMini
         private void OnLanguageItemClick(object sender, EventArgs e)
         {
             var menuItem = sender as ToolStripMenuItem;
-            if (menuItem != null && menuItem.Tag is string langCode)
+            if (menuItem == null || !(menuItem.Tag is string langCode))
+                return;
+
+            foreach (var item in languageItems.Values)
             {
-                foreach (var item in languageItems.Values)
-                {
-                    item.Checked = false;
-                }
-                menuItem.Checked = true;
-
-                config.Language = langCode;
-                Config.Save(config);
-
-                InitializeLanguage();
-
-                RefreshMenuTexts();
+                item.Checked = false;
             }
+            menuItem.Checked = true;
+
+            config.Language = langCode;
+            Config.Save(config);
+
+            InitializeLanguage();
+            RefreshMenuTexts();
         }
 
         private void RefreshMenuTexts()
         {
-            var contextMenu = trayIcon.ContextMenuStrip;
-            if (contextMenu != null)
-            {
-                if (contextMenu.Items[0] is ToolStripMenuItem autoStartItem)
-                {
-                    autoStartItem.Text = Properties.Resources.AutoStart;
-                }
+            if (autoStartItem != null)
+                autoStartItem.Text = Properties.Resources.AutoStart;
 
-                if (contextMenu.Items[1] is ToolStripMenuItem incognitoModeItem)
-                    incognitoModeItem.Text = Properties.Resources.IncognitoMode;
+            if (noTraceModeItem != null)
+                noTraceModeItem.Text = Properties.Resources.IncognitoMode;
 
-                if (contextMenu.Items[3] is ToolStripMenuItem languageMenuItem)
-                    languageMenuItem.Text = Properties.Resources.Language;
+            if (languageMenu != null)
+                languageMenu.Text = Properties.Resources.Language;
 
-                if (contextMenu.Items[4] is ToolStripMenuItem aboutItem)
-                    aboutItem.Text = Properties.Resources.About;
+            if (aboutItem != null)
+                aboutItem.Text = Properties.Resources.About;
 
-                if (contextMenu.Items[6] is ToolStripMenuItem exitItem)
-                    exitItem.Text = Properties.Resources.Exit;
-            }
+            if (exitItem != null)
+                exitItem.Text = Properties.Resources.Exit;
 
             foreach (var languageItem in languageItems)
             {
@@ -293,9 +274,30 @@ namespace ScourgifyMini
         private void OnAutoStartClick(object sender, EventArgs e)
         {
             var menuItem = sender as ToolStripMenuItem;
-            config.AutoStart = menuItem.Checked;
-            UpdateAutoStart(config.AutoStart);
+            if (menuItem == null)
+                return;
+
+            bool previousAutoStart = config.AutoStart;
+            bool requestedAutoStart = menuItem.Checked;
+
+            Exception error;
+            if (TryUpdateAutoStart(requestedAutoStart, out error))
+            {
+                config.AutoStart = requestedAutoStart;
+                Config.Save(config);
+                return;
+            }
+
+            Log.Warning(error, "Failed to update auto-start registration from tray menu");
+            config.AutoStart = previousAutoStart;
+            menuItem.Checked = previousAutoStart;
             Config.Save(config);
+
+            System.Windows.MessageBox.Show(
+                Properties.Resources.AutoStartUpdateFailed,
+                Properties.Resources.Warning,
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
         }
 
         private async void OnNoTraceModeClick(object sender, EventArgs e)
@@ -304,17 +306,25 @@ namespace ScourgifyMini
             if (menuItem == null)
                 return;
 
+            bool previousNoTraceMode = config.NoTraceMode;
             menuItem.Enabled = false;
+
             try
             {
                 if (menuItem.Checked)
                 {
                     await EnterNoTraceModeAsync();
+                    if (_shutdownStarted)
+                        return;
+
                     config.NoTraceMode = true;
                 }
                 else
                 {
                     await ExitNoTraceModeAsync();
+                    if (_shutdownStarted)
+                        return;
+
                     config.NoTraceMode = false;
                 }
 
@@ -323,7 +333,10 @@ namespace ScourgifyMini
             catch (Exception ex)
             {
                 Log.Error(ex, "Failed to change no-trace mode");
-                menuItem.Checked = config.NoTraceMode;
+                config.NoTraceMode = previousNoTraceMode;
+                menuItem.Checked = previousNoTraceMode;
+                Config.Save(config);
+
                 System.Windows.MessageBox.Show(
                     ex.Message,
                     Properties.Resources.Warning,
@@ -332,12 +345,18 @@ namespace ScourgifyMini
             }
             finally
             {
-                menuItem.Enabled = true;
+                if (!_shutdownStarted)
+                {
+                    menuItem.Enabled = true;
+                }
             }
         }
 
         private async void StartNoTraceModeFromStartup()
         {
+            if (noTraceModeItem != null)
+                noTraceModeItem.Enabled = false;
+
             try
             {
                 await EnterNoTraceModeAsync();
@@ -353,22 +372,46 @@ namespace ScourgifyMini
                     noTraceModeItem.Checked = false;
                 }
             }
+            finally
+            {
+                if (noTraceModeItem != null && !_shutdownStarted)
+                    noTraceModeItem.Enabled = true;
+            }
         }
 
-        private Task EnterNoTraceModeAsync()
+        private async Task EnterNoTraceModeAsync()
         {
-            return Task.Run(() => EnterNoTraceMode());
+            await _noTraceModeSemaphore.WaitAsync();
+            try
+            {
+                await Task.Run(() => EnterNoTraceModeUnsafe());
+            }
+            finally
+            {
+                _noTraceModeSemaphore.Release();
+            }
         }
 
-        private Task ExitNoTraceModeAsync()
+        private async Task ExitNoTraceModeAsync()
         {
-            return Task.Run(() => ExitNoTraceMode());
+            await _noTraceModeSemaphore.WaitAsync();
+            try
+            {
+                await Task.Run(() => ExitNoTraceModeUnsafe());
+            }
+            finally
+            {
+                _noTraceModeSemaphore.Release();
+            }
         }
 
-        private void EnterNoTraceMode()
+        private void EnterNoTraceModeUnsafe()
         {
             if (_quickAccessLock != null)
                 return;
+
+            if (_quickAccessManager == null)
+                throw new ObjectDisposedException(nameof(_quickAccessManager));
 
             _quickAccessLock = _quickAccessManager.LockQuickAccess();
             Log.Information(
@@ -378,31 +421,37 @@ namespace ScourgifyMini
                 _quickAccessLock.InitialShortcutPaths.Count);
         }
 
-        private void ExitNoTraceMode()
+        private void ExitNoTraceModeUnsafe()
         {
             var quickAccessLock = _quickAccessLock;
             if (quickAccessLock == null)
                 return;
 
-            _quickAccessLock = null;
-            var report = quickAccessLock.Unlock(new QuickAccessUnlockOptions
+            try
             {
-                CleanupNewRecentLinks = config == null || config.CleanupNewRecentLinksOnUnlock
-            });
+                var report = quickAccessLock.Unlock(new QuickAccessUnlockOptions
+                {
+                    CleanupNewRecentLinks = config == null || config.CleanupNewRecentLinksOnUnlock
+                });
 
-            Log.Information(
-                "No-trace mode stopped: CurrentShortcutCount={CurrentShortcutCount}, NewShortcutCount={NewShortcutCount}, DeletedShortcutCount={DeletedShortcutCount}, FailedShortcutDeletionCount={FailedShortcutDeletionCount}",
-                report.CurrentShortcutPaths.Count,
-                report.NewShortcutPaths.Count,
-                report.DeletedShortcutPaths.Count,
-                report.FailedShortcutDeletions.Count);
+                Log.Information(
+                    "No-trace mode stopped: CurrentShortcutCount={CurrentShortcutCount}, NewShortcutCount={NewShortcutCount}, DeletedShortcutCount={DeletedShortcutCount}, FailedShortcutDeletionCount={FailedShortcutDeletionCount}",
+                    report.CurrentShortcutPaths.Count,
+                    report.NewShortcutPaths.Count,
+                    report.DeletedShortcutPaths.Count,
+                    report.FailedShortcutDeletions.Count);
 
-            foreach (var failure in report.FailedShortcutDeletions)
+                foreach (var failure in report.FailedShortcutDeletions)
+                {
+                    Log.Warning(
+                        failure.Error,
+                        "Failed to delete new Recent shortcut during no-trace unlock: {Path}",
+                        failure.Path);
+                }
+            }
+            finally
             {
-                Log.Warning(
-                    failure.Error,
-                    "Failed to delete new Recent shortcut during no-trace unlock: {Path}",
-                    failure.Path);
+                _quickAccessLock = null;
             }
         }
 
@@ -415,36 +464,190 @@ namespace ScourgifyMini
             }
 
             aboutWindow = new AboutWindow();
-            aboutWindow.Closed += (closedSender, args) => aboutWindow = null;
+            aboutWindow.Closed += OnAboutWindowClosed;
             aboutWindow.Show();
+        }
+
+        private void OnAboutWindowClosed(object sender, EventArgs e)
+        {
+            aboutWindow = null;
         }
 
         private void OnExitClick(object sender, EventArgs e)
         {
-            trayIcon.Visible = false;
-            trayIcon.Dispose();
-            Log.Information("ScourgifyMini Exited");
-            Log.CloseAndFlush();
+            ShutdownApplication();
+        }
 
-            if (_mutex != null)
+        private void OnWindowClosing(object sender, CancelEventArgs e)
+        {
+            if (_shutdownCompleted)
+                return;
+
+            e.Cancel = true;
+            ShutdownApplication();
+        }
+
+        private void OnWindowClosed(object sender, EventArgs e)
+        {
+            Dispose();
+        }
+
+        private void ShutdownApplication()
+        {
+            lock (_shutdownLock)
             {
-                _mutex.ReleaseMutex();
-                _mutex.Dispose();
-                _mutex = null;
+                if (_shutdownStarted)
+                    return;
+
+                _shutdownStarted = true;
             }
 
-            if (_quickAccessLock != null)
+            try
             {
-                ExitNoTraceMode();
+                DisableTrayForShutdown();
+                ExitNoTraceModeForShutdown();
+                DisposeQuickAccessManager();
+                CloseAboutWindowForShutdown();
+                DisposeTrayIcon();
+                Log.Information("ScourgifyMini Exited");
+                ReleaseMutex();
             }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error during shutdown");
+            }
+            finally
+            {
+                _shutdownCompleted = true;
+                _disposed = true;
+                Log.CloseAndFlush();
 
+                var application = Application.Current;
+                if (application != null && !application.Dispatcher.HasShutdownStarted)
+                {
+                    application.Shutdown();
+                }
+            }
+        }
+
+        private void DisableTrayForShutdown()
+        {
+            if (autoStartItem != null)
+                autoStartItem.Enabled = false;
+
+            if (noTraceModeItem != null)
+                noTraceModeItem.Enabled = false;
+
+            if (languageMenu != null)
+                languageMenu.Enabled = false;
+
+            if (aboutItem != null)
+                aboutItem.Enabled = false;
+
+            if (exitItem != null)
+                exitItem.Enabled = false;
+
+            if (trayIcon != null)
+                trayIcon.Visible = false;
+        }
+
+        private void ExitNoTraceModeForShutdown()
+        {
+            _noTraceModeSemaphore.Wait();
+            try
+            {
+                try
+                {
+                    ExitNoTraceModeUnsafe();
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Failed to exit no-trace mode during shutdown");
+                }
+            }
+            finally
+            {
+                _noTraceModeSemaphore.Release();
+            }
+        }
+
+        private void DisposeQuickAccessManager()
+        {
             if (_quickAccessManager != null)
             {
                 _quickAccessManager.Dispose();
                 _quickAccessManager = null;
             }
+        }
 
-            System.Windows.Application.Current.Shutdown();
+        private void CloseAboutWindowForShutdown()
+        {
+            if (aboutWindow == null)
+                return;
+
+            aboutWindow.Closed -= OnAboutWindowClosed;
+            aboutWindow.Close();
+            aboutWindow = null;
+        }
+
+        private void DisposeTrayIcon()
+        {
+            if (trayIcon == null)
+                return;
+
+            var contextMenu = trayIcon.ContextMenuStrip;
+            trayIcon.ContextMenuStrip = null;
+            trayIcon.Dispose();
+            trayIcon = null;
+
+            if (contextMenu != null)
+                contextMenu.Dispose();
+
+            autoStartItem = null;
+            noTraceModeItem = null;
+            languageMenu = null;
+            aboutItem = null;
+            exitItem = null;
+            languageItems.Clear();
+        }
+
+        private void ReleaseMutex()
+        {
+            if (_mutex == null)
+                return;
+
+            try
+            {
+                if (_ownsMutex)
+                {
+                    _mutex.ReleaseMutex();
+                    _ownsMutex = false;
+                }
+            }
+            catch (ApplicationException ex)
+            {
+                Log.Warning(ex, "Failed to release single-instance mutex");
+            }
+            finally
+            {
+                _mutex.Dispose();
+                _mutex = null;
+            }
+        }
+
+        private bool TryUpdateAutoStart(bool enable, out Exception error)
+        {
+            try
+            {
+                UpdateAutoStart(enable);
+                error = null;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = ex;
+                return false;
+            }
         }
 
         private void UpdateAutoStart(bool enable)
@@ -454,6 +657,9 @@ namespace ScourgifyMini
             using (RegistryKey key = Registry.CurrentUser.OpenSubKey(
                 "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true))
             {
+                if (key == null)
+                    throw new InvalidOperationException("Unable to open the current user Run registry key.");
+
                 if (enable)
                 {
                     key.SetValue(appName, appPath);
@@ -464,6 +670,5 @@ namespace ScourgifyMini
                 }
             }
         }
-
     }
 }

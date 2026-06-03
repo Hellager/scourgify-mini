@@ -110,6 +110,9 @@
 	<data name="AutoStart" xml:space="preserve">
 		<value>Автозапуск</value>
 	</data>
+	<data name="AutoStartUpdateFailed" xml:space="preserve">
+		<value>Не удалось обновить регистрацию автозапуска. Проверьте разрешения и повторите попытку.</value>
+	</data>
 	<data name="DevelopedBy" xml:space="preserve">
 		<value>Разработано</value>
 	</data>

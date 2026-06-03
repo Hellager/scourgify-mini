@@ -104,6 +104,15 @@ namespace ScourgifyMini.Properties {
                 return ResourceManager.GetString("AutoStart", resourceCulture);
             }
         }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Failed to update startup registration. Please check your permissions and try again..
+        /// </summary>
+        public static string AutoStartUpdateFailed {
+            get {
+                return ResourceManager.GetString("AutoStartUpdateFailed", resourceCulture);
+            }
+        }
         
         /// <summary>
         ///   Looks up a localized string similar to Core functionality {0} is limited, related features have been disabled.
