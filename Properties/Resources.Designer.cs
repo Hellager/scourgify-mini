@@ -151,7 +151,7 @@ namespace ScourgifyMini.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to No Trace Mode.
+        ///   Looks up a localized string similar to Incognito Mode.
         /// </summary>
         public static string IncognitoMode {
             get {

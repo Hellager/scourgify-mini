@@ -26,6 +26,7 @@ namespace ScourgifyMini
         };
 
         private static readonly string ConfigPath = Path.Combine(
+            // Keep config next to the executable intentionally for portable deployments.
             Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location),
             "config.toml");
 

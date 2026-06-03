@@ -119,6 +119,7 @@ namespace ScourgifyMini
 
         private void InitializeLogger()
         {
+            // Keep logs next to the executable intentionally for portable deployments.
             _logPath = Path.Combine(
                 Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location),
                 "logs", "ScourgifyMini-.log");
@@ -155,7 +156,7 @@ namespace ScourgifyMini
         {
             var assembly = System.Reflection.Assembly.GetExecutingAssembly();
             Log.Information(
-                "Startup context: Version={Version}, ExecutablePath={ExecutablePath}, ConfigPath={ConfigPath}, LogPath={LogPath}, Language={Language}, AutoStart={AutoStart}, NoTraceMode={NoTraceMode}, CleanupNewRecentLinksOnUnlock={CleanupNewRecentLinksOnUnlock}",
+                "Startup context: Version={Version}, ExecutablePath={ExecutablePath}, ConfigPath={ConfigPath}, LogPath={LogPath}, Language={Language}, AutoStart={AutoStart}, IncognitoMode={IncognitoMode}, CleanupNewRecentLinksOnUnlock={CleanupNewRecentLinksOnUnlock}",
                 assembly.GetName().Version,
                 assembly.Location,
                 Config.FilePath,
@@ -341,7 +342,7 @@ namespace ScourgifyMini
             bool previousNoTraceMode = config.NoTraceMode;
             bool requestedNoTraceMode = menuItem.Checked;
             Log.Information(
-                "No-trace mode change requested: RequestedNoTraceMode={RequestedNoTraceMode}, PreviousNoTraceMode={PreviousNoTraceMode}",
+                "Incognito mode change requested: RequestedIncognitoMode={RequestedIncognitoMode}, PreviousIncognitoMode={PreviousIncognitoMode}",
                 requestedNoTraceMode,
                 previousNoTraceMode);
 
@@ -367,11 +368,11 @@ namespace ScourgifyMini
                 }
 
                 Config.Save(config);
-                Log.Information("No-trace mode config changed: NoTraceMode={NoTraceMode}", config.NoTraceMode);
+                Log.Information("Incognito mode config changed: IncognitoMode={IncognitoMode}", config.NoTraceMode);
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Failed to change no-trace mode");
+                Log.Error(ex, "Failed to change incognito mode");
                 config.NoTraceMode = previousNoTraceMode;
                 menuItem.Checked = previousNoTraceMode;
                 Config.Save(config);
@@ -396,14 +397,14 @@ namespace ScourgifyMini
             if (noTraceModeItem != null)
                 noTraceModeItem.Enabled = false;
 
-            Log.Information("Starting no-trace mode from saved config");
+            Log.Information("Starting incognito mode from saved config");
             try
             {
                 await EnterNoTraceModeAsync();
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Failed to start no-trace mode from saved config");
+                Log.Error(ex, "Failed to start incognito mode from saved config");
                 config.NoTraceMode = false;
                 Config.Save(config);
 
@@ -421,10 +422,10 @@ namespace ScourgifyMini
 
         private async Task EnterNoTraceModeAsync()
         {
-            await _noTraceModeSemaphore.WaitAsync();
+            await _noTraceModeSemaphore.WaitAsync().ConfigureAwait(false);
             try
             {
-                await Task.Run(() => EnterNoTraceModeUnsafe());
+                await Task.Run(() => EnterNoTraceModeUnsafe()).ConfigureAwait(false);
             }
             finally
             {
@@ -434,10 +435,10 @@ namespace ScourgifyMini
 
         private async Task ExitNoTraceModeAsync()
         {
-            await _noTraceModeSemaphore.WaitAsync();
+            await _noTraceModeSemaphore.WaitAsync().ConfigureAwait(false);
             try
             {
-                await Task.Run(() => ExitNoTraceModeUnsafe());
+                await Task.Run(() => ExitNoTraceModeUnsafe()).ConfigureAwait(false);
             }
             finally
             {
@@ -455,7 +456,7 @@ namespace ScourgifyMini
 
             _quickAccessLock = _quickAccessManager.LockQuickAccess();
             Log.Information(
-                "No-trace mode started: Target={Target}, LockedFileCount={LockedFileCount}, InitialShortcutCount={InitialShortcutCount}",
+                "Incognito mode started: Target={Target}, LockedFileCount={LockedFileCount}, InitialShortcutCount={InitialShortcutCount}",
                 _quickAccessLock.Target,
                 _quickAccessLock.LockedFileCount,
                 _quickAccessLock.InitialShortcutPaths.Count);
@@ -475,7 +476,7 @@ namespace ScourgifyMini
                 });
 
                 Log.Information(
-                    "No-trace mode stopped: CurrentShortcutCount={CurrentShortcutCount}, NewShortcutCount={NewShortcutCount}, DeletedShortcutCount={DeletedShortcutCount}, FailedShortcutDeletionCount={FailedShortcutDeletionCount}",
+                    "Incognito mode stopped: CurrentShortcutCount={CurrentShortcutCount}, NewShortcutCount={NewShortcutCount}, DeletedShortcutCount={DeletedShortcutCount}, FailedShortcutDeletionCount={FailedShortcutDeletionCount}",
                     report.CurrentShortcutPaths.Count,
                     report.NewShortcutPaths.Count,
                     report.DeletedShortcutPaths.Count,
@@ -485,7 +486,7 @@ namespace ScourgifyMini
                 {
                     Log.Warning(
                         failure.Error,
-                        "Failed to delete new Recent shortcut during no-trace unlock: {Path}",
+                        "Failed to delete new Recent shortcut during incognito unlock: {Path}",
                         failure.Path);
                 }
             }
@@ -603,7 +604,7 @@ namespace ScourgifyMini
                 }
                 catch (Exception ex)
                 {
-                    Log.Error(ex, "Failed to exit no-trace mode during shutdown");
+                    Log.Error(ex, "Failed to exit incognito mode during shutdown");
                 }
             }
             finally
@@ -703,7 +704,7 @@ namespace ScourgifyMini
 
                 if (enable)
                 {
-                    key.SetValue(appName, appPath);
+                    key.SetValue(appName, "\"" + appPath + "\"");
                 }
                 else
                 {

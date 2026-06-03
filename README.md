@@ -12,5 +12,5 @@ ScourgifyMini is a lightweight tray utility for privacy-focused Windows Quick Ac
 
 - Runs as a single-instance tray application.
 - Supports auto-start and localized tray menu text.
-- No Trace Mode locks all Windows Quick Access backing files while enabled.
-- When No Trace Mode is turned off or the app exits, it unlocks Quick Access and removes newly created Windows Recent `.lnk` shortcuts by default.
+- Incognito Mode locks all Windows Quick Access backing files while enabled.
+- When Incognito Mode is turned off or the app exits, it unlocks Quick Access and removes newly created Windows Recent `.lnk` shortcuts by default.

@@ -249,7 +249,7 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>PowerShell -Command "Get-ChildItem -Path '$(TargetDir)' -File | Where-Object { $_.Extension -ne '.exe' } | Remove-Item -Force -Verbose"
+    <PostBuildEvent>PowerShell -Command "Get-ChildItem -Path '$(TargetDir)' -File | Where-Object { $_.Extension -ne '.exe' -and $_.Extension -ne '.config' } | Remove-Item -Force -Verbose"
 </PostBuildEvent>
   </PropertyGroup>
   <Import Project="packages\Fody.6.9.3\build\Fody.targets" Condition="Exists('packages\Fody.6.9.3\build\Fody.targets')" />
