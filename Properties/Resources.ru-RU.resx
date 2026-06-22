@@ -106,6 +106,11 @@
 	<data name="IncognitoMode" xml:space="preserve">
 		<value>Режим инкогнито</value>
 	</data>
+	<data name="IncognitoModeStartupFailed" xml:space="preserve">
+		<value>Не удалось включить режим инкогнито при запуске. В этом сеансе Windows Quick Access не будет заблокирован от записи новых элементов. Проверьте причину и повторите попытку.
+
+Ошибка: {0}</value>
+	</data>
 	<data name="InitializationFailed" xml:space="preserve">
 		<value>Не удалось инициализировать приложение</value>
 	</data>
@@ -123,6 +128,12 @@
 	</data>
 	<data name="Query" xml:space="preserve">
 		<value>Запрос</value>
+	</data>
+	<data name="TestIncognitoModeStartupWarning" xml:space="preserve">
+		<value>Показать предупреждение запуска инкогнито</value>
+	</data>
+	<data name="TestMenu" xml:space="preserve">
+		<value>Тест</value>
 	</data>
 	<data name="Handle" xml:space="preserve">
 		<value>Обработать</value>

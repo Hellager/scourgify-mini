@@ -133,6 +133,11 @@
   <data name="IncognitoMode" xml:space="preserve">
     <value>Incognito Mode</value>
   </data>
+  <data name="IncognitoModeStartupFailed" xml:space="preserve">
+    <value>Incognito Mode could not be enabled at startup. This session will not prevent Windows Quick Access from recording new items. Please check the issue and try again.
+
+Error: {0}</value>
+  </data>
   <data name="InitializationFailed" xml:space="preserve">
     <value>Application initialization failed</value>
   </data>
@@ -147,6 +152,12 @@
   </data>
   <data name="Query" xml:space="preserve">
     <value>Query</value>
+  </data>
+  <data name="TestIncognitoModeStartupWarning" xml:space="preserve">
+    <value>Show Incognito Startup Warning</value>
+  </data>
+  <data name="TestMenu" xml:space="preserve">
+    <value>Test</value>
   </data>
   <data name="Warning" xml:space="preserve">
     <value>Warning</value>

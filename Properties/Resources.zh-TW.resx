@@ -124,6 +124,11 @@
   <data name="IncognitoMode" xml:space="preserve">
     <value>无痕模式</value>
   </data>
+  <data name="IncognitoModeStartupFailed" xml:space="preserve">
+    <value>無痕模式未能在啟動時啟用。本次執行不會阻止 Windows 快速存取記錄新項目。請檢查原因後重試。
+
+錯誤：{0}</value>
+  </data>
   <data name="InitializationFailed" xml:space="preserve">
     <value>應用程式初始化失敗</value>
   </data>
@@ -141,6 +146,12 @@
   </data>
   <data name="Query" xml:space="preserve">
     <value>查詢</value>
+  </data>
+  <data name="TestIncognitoModeStartupWarning" xml:space="preserve">
+    <value>顯示無痕啟動警告</value>
+  </data>
+  <data name="TestMenu" xml:space="preserve">
+    <value>測試</value>
   </data>
   <data name="Handle" xml:space="preserve">
     <value>處理</value>

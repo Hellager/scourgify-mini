@@ -32,6 +32,11 @@ namespace ScourgifyMini
         private ToolStripMenuItem languageMenu;
         private ToolStripMenuItem noTraceModeItem;
         private ToolStripMenuItem aboutItem;
+#if DEBUG
+        private ToolStripSeparator testMenuSeparator;
+        private ToolStripMenuItem testMenu;
+        private ToolStripMenuItem testIncognitoModeStartupWarningItem;
+#endif
         private ToolStripMenuItem exitItem;
         private readonly Dictionary<string, ToolStripMenuItem> languageItems = new Dictionary<string, ToolStripMenuItem>();
 
@@ -226,6 +231,15 @@ namespace ScourgifyMini
                 Properties.Resources.About,
                 null, OnAboutClick);
 
+#if DEBUG
+            testMenuSeparator = new ToolStripSeparator();
+            testMenu = new ToolStripMenuItem(Properties.Resources.TestMenu);
+            testIncognitoModeStartupWarningItem = new ToolStripMenuItem(
+                Properties.Resources.TestIncognitoModeStartupWarning,
+                null, OnTestIncognitoModeStartupWarningClick);
+            testMenu.DropDownItems.Add(testIncognitoModeStartupWarningItem);
+#endif
+
             exitItem = new ToolStripMenuItem(
                 Properties.Resources.Exit,
                 null, OnExitClick);
@@ -236,7 +250,19 @@ namespace ScourgifyMini
                 noTraceModeItem,
                 new ToolStripSeparator(),
                 languageMenu,
-                aboutItem,
+                aboutItem
+            });
+
+#if DEBUG
+            contextMenu.Items.AddRange(new ToolStripItem[]
+            {
+                testMenuSeparator,
+                testMenu
+            });
+#endif
+
+            contextMenu.Items.AddRange(new ToolStripItem[]
+            {
                 new ToolStripSeparator(),
                 exitItem
             });
@@ -281,6 +307,14 @@ namespace ScourgifyMini
 
             if (aboutItem != null)
                 aboutItem.Text = Properties.Resources.About;
+
+#if DEBUG
+            if (testMenu != null)
+                testMenu.Text = Properties.Resources.TestMenu;
+
+            if (testIncognitoModeStartupWarningItem != null)
+                testIncognitoModeStartupWarningItem.Text = Properties.Resources.TestIncognitoModeStartupWarning;
+#endif
 
             if (exitItem != null)
                 exitItem.Text = Properties.Resources.Exit;
@@ -405,13 +439,14 @@ namespace ScourgifyMini
             catch (Exception ex)
             {
                 Log.Error(ex, "Failed to start incognito mode from saved config");
-                config.NoTraceMode = false;
-                Config.Save(config);
+                Log.Warning("Incognito mode startup failed; saved preference remains enabled");
 
                 if (noTraceModeItem != null)
                 {
-                    noTraceModeItem.Checked = false;
+                    noTraceModeItem.Checked = true;
                 }
+
+                ShowIncognitoModeStartupFailedWarning(ex.Message);
             }
             finally
             {
@@ -509,6 +544,22 @@ namespace ScourgifyMini
             aboutWindow.Show();
         }
 
+#if DEBUG
+        private void OnTestIncognitoModeStartupWarningClick(object sender, EventArgs e)
+        {
+            ShowIncognitoModeStartupFailedWarning(Properties.Resources.TestMenu);
+        }
+#endif
+
+        private void ShowIncognitoModeStartupFailedWarning(string errorMessage)
+        {
+            System.Windows.MessageBox.Show(
+                string.Format(Properties.Resources.IncognitoModeStartupFailed, errorMessage),
+                Properties.Resources.Warning,
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+
         private void OnAboutWindowClosed(object sender, EventArgs e)
         {
             aboutWindow = null;
@@ -586,6 +637,14 @@ namespace ScourgifyMini
             if (aboutItem != null)
                 aboutItem.Enabled = false;
 
+#if DEBUG
+            if (testMenuSeparator != null)
+                testMenuSeparator.Enabled = false;
+
+            if (testMenu != null)
+                testMenu.Enabled = false;
+#endif
+
             if (exitItem != null)
                 exitItem.Enabled = false;
 
@@ -649,6 +708,11 @@ namespace ScourgifyMini
             noTraceModeItem = null;
             languageMenu = null;
             aboutItem = null;
+#if DEBUG
+            testMenuSeparator = null;
+            testMenu = null;
+            testIncognitoModeStartupWarningItem = null;
+#endif
             exitItem = null;
             languageItems.Clear();
         }

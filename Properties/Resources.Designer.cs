@@ -160,6 +160,17 @@ namespace ScourgifyMini.Properties {
         }
         
         /// <summary>
+        ///   查找类似 Incognito Mode could not be enabled at startup. This session will not prevent Windows Quick Access from recording new items. Please check the issue and try again.
+        ///
+        ///Error: {0} 的本地化字符串。
+        /// </summary>
+        public static string IncognitoModeStartupFailed {
+            get {
+                return ResourceManager.GetString("IncognitoModeStartupFailed", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   查找类似 Application initialization failed 的本地化字符串。
         /// </summary>
         public static string InitializationFailed {
@@ -204,6 +215,24 @@ namespace ScourgifyMini.Properties {
             }
         }
         
+        /// <summary>
+        ///   查找类似 Show Incognito Startup Warning 的本地化字符串。
+        /// </summary>
+        public static string TestIncognitoModeStartupWarning {
+            get {
+                return ResourceManager.GetString("TestIncognitoModeStartupWarning", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   查找类似 Test 的本地化字符串。
+        /// </summary>
+        public static string TestMenu {
+            get {
+                return ResourceManager.GetString("TestMenu", resourceCulture);
+            }
+        }
+
         /// <summary>
         ///   查找类似 Warning 的本地化字符串。
         /// </summary>
