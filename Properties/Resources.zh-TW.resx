@@ -124,6 +124,14 @@
   <data name="IncognitoMode" xml:space="preserve">
     <value>无痕模式</value>
   </data>
+  <data name="IncognitoModePartialProtection" xml:space="preserve">
+    <value>無痕模式已以部分保護狀態啟用。
+
+已保護：{0}
+因底層資料缺失而未保護：{1}
+
+未保護的快速存取區域在本次執行期間仍可能記錄新項目。</value>
+  </data>
   <data name="IncognitoModeStartupFailed" xml:space="preserve">
     <value>無痕模式未能在啟動時啟用。本次執行不會阻止 Windows 快速存取記錄新項目。請檢查原因後重試。
 

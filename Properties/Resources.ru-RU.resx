@@ -106,6 +106,14 @@
 	<data name="IncognitoMode" xml:space="preserve">
 		<value>Режим инкогнито</value>
 	</data>
+	<data name="IncognitoModePartialProtection" xml:space="preserve">
+		<value>Режим инкогнито включен с частичной защитой.
+
+Защищено: {0}
+Не защищено, так как отсутствуют базовые данные: {1}
+
+Незащищенный раздел Quick Access все еще может записывать новые элементы в этом сеансе.</value>
+	</data>
 	<data name="IncognitoModeStartupFailed" xml:space="preserve">
 		<value>Не удалось включить режим инкогнито при запуске. В этом сеансе Windows Quick Access не будет заблокирован от записи новых элементов. Проверьте причину и повторите попытку.
 

@@ -133,6 +133,14 @@
   <data name="IncognitoMode" xml:space="preserve">
     <value>Incognito Mode</value>
   </data>
+  <data name="IncognitoModePartialProtection" xml:space="preserve">
+    <value>Incognito Mode is enabled with partial protection.
+
+Protected: {0}
+Not protected because backing data is missing: {1}
+
+The unprotected Quick Access section may still record new items during this session.</value>
+  </data>
   <data name="IncognitoModeStartupFailed" xml:space="preserve">
     <value>Incognito Mode could not be enabled at startup. This session will not prevent Windows Quick Access from recording new items. Please check the issue and try again.
 

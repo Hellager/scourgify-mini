@@ -160,6 +160,20 @@ namespace ScourgifyMini.Properties {
         }
         
         /// <summary>
+        ///   查找类似 Incognito Mode is enabled with partial protection.
+        ///
+        ///Protected: {0}
+        ///Not protected because backing data is missing: {1}
+        ///
+        ///The unprotected Quick Access section may still record new items during this session. 的本地化字符串。
+        /// </summary>
+        public static string IncognitoModePartialProtection {
+            get {
+                return ResourceManager.GetString("IncognitoModePartialProtection", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   查找类似 Incognito Mode could not be enabled at startup. This session will not prevent Windows Quick Access from recording new items. Please check the issue and try again.
         ///
         ///Error: {0} 的本地化字符串。

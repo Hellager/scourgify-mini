@@ -41,7 +41,7 @@ namespace ScourgifyMini
         private readonly Dictionary<string, ToolStripMenuItem> languageItems = new Dictionary<string, ToolStripMenuItem>();
 
         private QuickAccessManager _quickAccessManager;
-        private QuickAccessLock _quickAccessLock;
+        private QuickAccessLockSession _quickAccessLockSession;
 
         private string _logPath;
         private readonly object _shutdownLock = new object();
@@ -390,6 +390,7 @@ namespace ScourgifyMini
                     if (_shutdownStarted)
                         return;
 
+                    ShowPartialProtectionWarningIfNeeded();
                     config.NoTraceMode = true;
                 }
                 else
@@ -435,6 +436,8 @@ namespace ScourgifyMini
             try
             {
                 await EnterNoTraceModeAsync();
+                if (!_shutdownStarted)
+                    ShowPartialProtectionWarningIfNeeded();
             }
             catch (Exception ex)
             {
@@ -483,52 +486,171 @@ namespace ScourgifyMini
 
         private void EnterNoTraceModeUnsafe()
         {
-            if (_quickAccessLock != null)
+            if (_quickAccessLockSession != null)
                 return;
 
             if (_quickAccessManager == null)
                 throw new ObjectDisposedException(nameof(_quickAccessManager));
 
-            _quickAccessLock = _quickAccessManager.LockQuickAccess();
+            _quickAccessLockSession = LockQuickAccessWithFallback();
             Log.Information(
-                "Incognito mode started: Target={Target}, LockedFileCount={LockedFileCount}, InitialShortcutCount={InitialShortcutCount}",
-                _quickAccessLock.Target,
-                _quickAccessLock.LockedFileCount,
-                _quickAccessLock.InitialShortcutPaths.Count);
+                "Incognito mode started: LockedTargets={LockedTargets}, MissingTargets={MissingTargets}, IsPartial={IsPartial}, LockedFileCount={LockedFileCount}, InitialShortcutCount={InitialShortcutCount}",
+                _quickAccessLockSession.LockedTargetsText,
+                _quickAccessLockSession.MissingTargetsText,
+                _quickAccessLockSession.IsPartial,
+                _quickAccessLockSession.LockedFileCount,
+                _quickAccessLockSession.InitialShortcutCount);
         }
 
         private void ExitNoTraceModeUnsafe()
         {
-            var quickAccessLock = _quickAccessLock;
-            if (quickAccessLock == null)
+            var quickAccessLockSession = _quickAccessLockSession;
+            if (quickAccessLockSession == null)
                 return;
 
             try
             {
-                var report = quickAccessLock.Unlock(new QuickAccessUnlockOptions
-                {
-                    CleanupNewRecentLinks = config == null || config.CleanupNewRecentLinksOnUnlock
-                });
-
-                Log.Information(
-                    "Incognito mode stopped: CurrentShortcutCount={CurrentShortcutCount}, NewShortcutCount={NewShortcutCount}, DeletedShortcutCount={DeletedShortcutCount}, FailedShortcutDeletionCount={FailedShortcutDeletionCount}",
-                    report.CurrentShortcutPaths.Count,
-                    report.NewShortcutPaths.Count,
-                    report.DeletedShortcutPaths.Count,
-                    report.FailedShortcutDeletions.Count);
-
-                foreach (var failure in report.FailedShortcutDeletions)
-                {
-                    Log.Warning(
-                        failure.Error,
-                        "Failed to delete new Recent shortcut during incognito unlock: {Path}",
-                        failure.Path);
-                }
+                UnlockQuickAccessSession(quickAccessLockSession);
             }
             finally
             {
-                _quickAccessLock = null;
+                _quickAccessLockSession = null;
             }
+        }
+
+        private QuickAccessLockSession LockQuickAccessWithFallback()
+        {
+            try
+            {
+                var quickAccessLock = _quickAccessManager.LockQuickAccess();
+                return QuickAccessLockSession.CreateComplete(quickAccessLock);
+            }
+            catch (FileNotFoundException ex)
+            {
+                Log.Warning(ex, "Full Quick Access lock failed because a backing file is missing; trying partial lock fallback");
+                return LockQuickAccessPartially(ex);
+            }
+        }
+
+        private QuickAccessLockSession LockQuickAccessPartially(FileNotFoundException fullLockError)
+        {
+            var locks = new List<QuickAccessLock>();
+            var lockedTargets = new List<QuickAccessLockTarget>();
+            var missingTargets = new List<QuickAccessLockTarget>();
+            var failures = new List<Exception>();
+
+            TryLockQuickAccessTarget(
+                QuickAccessLockTarget.RecentFiles,
+                () => _quickAccessManager.LockRecentFiles(),
+                locks,
+                lockedTargets,
+                missingTargets,
+                failures);
+
+            TryLockQuickAccessTarget(
+                QuickAccessLockTarget.FrequentFolders,
+                () => _quickAccessManager.LockFrequentFolders(),
+                locks,
+                lockedTargets,
+                missingTargets,
+                failures);
+
+            if (failures.Count > 0)
+            {
+                DisposeLocks(locks);
+                throw new AggregateException("Failed to start incognito mode because one or more Quick Access backing files could not be locked.", failures);
+            }
+
+            if (locks.Count == 0)
+                throw fullLockError;
+
+            if (missingTargets.Count > 0)
+            {
+                Log.Warning(
+                    "Incognito mode partially started: LockedTargets={LockedTargets}, MissingTargets={MissingTargets}",
+                    FormatTargetsForLog(lockedTargets),
+                    FormatTargetsForLog(missingTargets));
+            }
+            else
+            {
+                Log.Information(
+                    "Incognito mode started through fallback lock path: LockedTargets={LockedTargets}",
+                    FormatTargetsForLog(lockedTargets));
+            }
+
+            return QuickAccessLockSession.CreateFallback(locks, lockedTargets, missingTargets);
+        }
+
+        private void TryLockQuickAccessTarget(
+            QuickAccessLockTarget target,
+            Func<QuickAccessLock> lockFactory,
+            List<QuickAccessLock> locks,
+            List<QuickAccessLockTarget> lockedTargets,
+            List<QuickAccessLockTarget> missingTargets,
+            List<Exception> failures)
+        {
+            try
+            {
+                locks.Add(lockFactory());
+                lockedTargets.Add(target);
+            }
+            catch (FileNotFoundException ex)
+            {
+                Log.Warning(ex, "Quick Access backing file missing during partial incognito lock: Target={Target}", target);
+                missingTargets.Add(target);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to lock Quick Access target during partial incognito lock: Target={Target}", target);
+                failures.Add(ex);
+            }
+        }
+
+        private void UnlockQuickAccessSession(QuickAccessLockSession quickAccessLockSession)
+        {
+            bool cleanupNewRecentLinks = config == null || config.CleanupNewRecentLinksOnUnlock;
+            bool cleanupAttempted = false;
+            var failures = new List<Exception>();
+
+            foreach (var quickAccessLock in quickAccessLockSession.Locks)
+            {
+                bool cleanupForThisLock = cleanupNewRecentLinks && !cleanupAttempted;
+                if (cleanupForThisLock)
+                    cleanupAttempted = true;
+
+                try
+                {
+                    var report = quickAccessLock.Unlock(new QuickAccessUnlockOptions
+                    {
+                        CleanupNewRecentLinks = cleanupForThisLock
+                    });
+
+                    Log.Information(
+                        "Incognito mode lock stopped: Target={Target}, CleanupNewRecentLinks={CleanupNewRecentLinks}, CurrentShortcutCount={CurrentShortcutCount}, NewShortcutCount={NewShortcutCount}, DeletedShortcutCount={DeletedShortcutCount}, FailedShortcutDeletionCount={FailedShortcutDeletionCount}",
+                        quickAccessLock.Target,
+                        cleanupForThisLock,
+                        report.CurrentShortcutPaths.Count,
+                        report.NewShortcutPaths.Count,
+                        report.DeletedShortcutPaths.Count,
+                        report.FailedShortcutDeletions.Count);
+
+                    foreach (var failure in report.FailedShortcutDeletions)
+                    {
+                        Log.Warning(
+                            failure.Error,
+                            "Failed to delete new Recent shortcut during incognito unlock: {Path}",
+                            failure.Path);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    failures.Add(ex);
+                    Log.Error(ex, "Failed to unlock Quick Access lock: Target={Target}", quickAccessLock.Target);
+                }
+            }
+
+            if (failures.Count > 0)
+                throw new AggregateException("Failed to unlock one or more Quick Access locks.", failures);
         }
 
         private void OnAboutClick(object sender, EventArgs e)
@@ -555,6 +677,22 @@ namespace ScourgifyMini
         {
             System.Windows.MessageBox.Show(
                 string.Format(Properties.Resources.IncognitoModeStartupFailed, errorMessage),
+                Properties.Resources.Warning,
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+
+        private void ShowPartialProtectionWarningIfNeeded()
+        {
+            var quickAccessLockSession = _quickAccessLockSession;
+            if (quickAccessLockSession == null || !quickAccessLockSession.IsPartial)
+                return;
+
+            System.Windows.MessageBox.Show(
+                string.Format(
+                    Properties.Resources.IncognitoModePartialProtection,
+                    quickAccessLockSession.LockedTargetsText,
+                    quickAccessLockSession.MissingTargetsText),
                 Properties.Resources.Warning,
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
@@ -774,6 +912,111 @@ namespace ScourgifyMini
                 {
                     key.DeleteValue(appName, false);
                 }
+            }
+        }
+
+        private static void DisposeLocks(IEnumerable<QuickAccessLock> locks)
+        {
+            foreach (var quickAccessLock in locks)
+            {
+                try
+                {
+                    quickAccessLock.Dispose();
+                }
+                catch
+                {
+                    // Best effort cleanup while preserving the original lock failure.
+                }
+            }
+        }
+
+        private static string FormatTargetsForLog(IEnumerable<QuickAccessLockTarget> targets)
+        {
+            return string.Join(", ", FormatTargetNames(targets));
+        }
+
+        private static IReadOnlyList<string> FormatTargetNames(IEnumerable<QuickAccessLockTarget> targets)
+        {
+            var targetNames = new List<string>();
+            foreach (var target in targets)
+            {
+                targetNames.Add(FormatTargetName(target));
+            }
+
+            return targetNames.AsReadOnly();
+        }
+
+        private static string FormatTargetName(QuickAccessLockTarget target)
+        {
+            switch (target)
+            {
+                case QuickAccessLockTarget.All:
+                    return "Recent Files + Frequent Folders";
+                case QuickAccessLockTarget.RecentFiles:
+                    return "Recent Files";
+                case QuickAccessLockTarget.FrequentFolders:
+                    return "Frequent Folders";
+                default:
+                    return target.ToString();
+            }
+        }
+
+        private sealed class QuickAccessLockSession
+        {
+            private QuickAccessLockSession(
+                IEnumerable<QuickAccessLock> locks,
+                IEnumerable<QuickAccessLockTarget> lockedTargets,
+                IEnumerable<QuickAccessLockTarget> missingTargets,
+                bool isPartial)
+            {
+                Locks = new List<QuickAccessLock>(locks).AsReadOnly();
+                LockedTargetsText = FormatTargetsForLog(lockedTargets);
+                MissingTargetsText = FormatTargetsForLog(missingTargets);
+                IsPartial = isPartial;
+
+                int lockedFileCount = 0;
+                var initialShortcutPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var quickAccessLock in Locks)
+                {
+                    lockedFileCount += quickAccessLock.LockedFileCount;
+                    foreach (var shortcutPath in quickAccessLock.InitialShortcutPaths)
+                    {
+                        initialShortcutPaths.Add(shortcutPath);
+                    }
+                }
+
+                LockedFileCount = lockedFileCount;
+                InitialShortcutCount = initialShortcutPaths.Count;
+            }
+
+            public IReadOnlyList<QuickAccessLock> Locks { get; }
+
+            public bool IsPartial { get; }
+
+            public int LockedFileCount { get; }
+
+            public int InitialShortcutCount { get; }
+
+            public string LockedTargetsText { get; }
+
+            public string MissingTargetsText { get; }
+
+            public static QuickAccessLockSession CreateComplete(QuickAccessLock quickAccessLock)
+            {
+                return new QuickAccessLockSession(
+                    new[] { quickAccessLock },
+                    new[] { QuickAccessLockTarget.All },
+                    new QuickAccessLockTarget[0],
+                    false);
+            }
+
+            public static QuickAccessLockSession CreateFallback(
+                IEnumerable<QuickAccessLock> locks,
+                IEnumerable<QuickAccessLockTarget> lockedTargets,
+                IEnumerable<QuickAccessLockTarget> missingTargets)
+            {
+                var missingTargetList = new List<QuickAccessLockTarget>(missingTargets);
+                return new QuickAccessLockSession(locks, lockedTargets, missingTargetList, missingTargetList.Count > 0);
             }
         }
     }

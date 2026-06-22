@@ -106,6 +106,14 @@
 	<data name="IncognitoMode" xml:space="preserve">
 		<value>Mode incognito</value>
 	</data>
+	<data name="IncognitoModePartialProtection" xml:space="preserve">
+		<value>Le mode incognito est activé avec une protection partielle.
+
+Protégé : {0}
+Non protégé car les données sous-jacentes sont manquantes : {1}
+
+La section Accès rapide non protégée peut encore enregistrer de nouveaux éléments pendant cette session.</value>
+	</data>
 	<data name="IncognitoModeStartupFailed" xml:space="preserve">
 		<value>Le mode incognito n'a pas pu être activé au démarrage. Cette session n'empêchera pas l'Accès rapide de Windows d'enregistrer de nouveaux éléments. Vérifiez le problème, puis réessayez.
 
