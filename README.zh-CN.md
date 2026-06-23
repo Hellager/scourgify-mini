@@ -1,8 +1,8 @@
-# 几净Mini
+# <img src="Assets/icons/dark/icon.svg" width="42" height="42" alt="" style="vertical-align: -4px;"> 几净mini
 
 其他语言版本: [中文](README.zh-CN.md) | [English](README.md)
 
-ScourgifyMini 是一个轻量级 Windows 托盘工具，支持为 Window 快速访问开启无痕模式。
+几净mini是一个轻量级 Windows 托盘工具，支持为 Window 快速访问开启无痕模式。
 
 在无痕模式开启期间 Windows 快速访问(包括最近使用的文件和常用文件夹)将不会有任何新增项。
 
@@ -28,7 +28,7 @@ ScourgifyMini 是一个轻量级 Windows 托盘工具，支持为 Window 快速�
    - **语言**
 3. 使用托盘菜单退出程序。
 
-首次运行时，ScourgifyMini 会在 `ScourgifyMini.exe` 同目录生成 `config.toml` 和 `logs/` 目录。
+首次运行时，几净mini会在 `ScourgifyMini.exe` 同目录生成 `config.toml` 和 `logs/` 目录。
 
 ## 构建
 

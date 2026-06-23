@@ -1,4 +1,4 @@
-# ScourgifyMini
+# <img src="Assets/icons/dark/icon.svg" width="42" height="42" alt="" style="vertical-align: -4px;"> ScourgifyMini
 
 Read this in other languages: [English](README.md) | [中文](README.zh-CN.md)
 
