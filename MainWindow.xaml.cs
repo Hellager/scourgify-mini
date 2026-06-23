@@ -23,6 +23,10 @@ namespace ScourgifyMini
     {
         private static Mutex _mutex = null;
         private const string MutexName = "ScourgifyMini_SingleInstance_Mutex";
+        private const string PersonalizeRegistryPath = @"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize";
+        private const string SystemUsesLightThemeRegistryValue = "SystemUsesLightTheme";
+        private const string LightTrayIconResourcePath = "Assets/icons/light/icon.ico";
+        private const string DarkTrayIconResourcePath = "Assets/icons/dark/icon.ico";
 
         private NotifyIcon trayIcon;
         private Config config;
@@ -50,6 +54,7 @@ namespace ScourgifyMini
         private bool _shutdownStarted = false;
         private bool _shutdownCompleted = false;
         private bool _disposed = false;
+        private bool _trayThemeEventsSubscribed = false;
 
         public MainWindow()
         {
@@ -190,9 +195,9 @@ namespace ScourgifyMini
         {
             trayIcon = new NotifyIcon
             {
-                Icon = System.Drawing.Icon.ExtractAssociatedIcon(System.Reflection.Assembly.GetExecutingAssembly().Location),
-                Visible = true
+                Visible = false
             };
+            UpdateTrayIconForSystemTheme();
 
             var contextMenu = new ContextMenuStrip();
 
@@ -268,6 +273,81 @@ namespace ScourgifyMini
             });
 
             trayIcon.ContextMenuStrip = contextMenu;
+            trayIcon.Visible = true;
+            SystemEvents.UserPreferenceChanged += OnUserPreferenceChanged;
+            _trayThemeEventsSubscribed = true;
+        }
+
+        private void OnUserPreferenceChanged(object sender, UserPreferenceChangedEventArgs e)
+        {
+            if (e.Category != UserPreferenceCategory.Color &&
+                e.Category != UserPreferenceCategory.General &&
+                e.Category != UserPreferenceCategory.VisualStyle)
+                return;
+
+            var dispatcher = Dispatcher;
+            if (dispatcher == null || dispatcher.HasShutdownStarted)
+                return;
+
+            dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (!_shutdownStarted && trayIcon != null)
+                    UpdateTrayIconForSystemTheme();
+            }));
+        }
+
+        private void UpdateTrayIconForSystemTheme()
+        {
+            if (trayIcon == null)
+                return;
+
+            var newIcon = LoadTrayIconForSystemTheme();
+            var previousIcon = trayIcon.Icon;
+            trayIcon.Icon = newIcon;
+
+            if (previousIcon != null)
+                previousIcon.Dispose();
+        }
+
+        private System.Drawing.Icon LoadTrayIconForSystemTheme()
+        {
+            string resourcePath = IsSystemLightTheme()
+                ? LightTrayIconResourcePath
+                : DarkTrayIconResourcePath;
+            return LoadIconResource(resourcePath);
+        }
+
+        private static System.Drawing.Icon LoadIconResource(string resourcePath)
+        {
+            var resourceInfo = Application.GetResourceStream(
+                new Uri("pack://application:,,,/" + resourcePath, UriKind.Absolute));
+            if (resourceInfo == null || resourceInfo.Stream == null)
+                throw new FileNotFoundException("Unable to load tray icon resource.", resourcePath);
+
+            using (resourceInfo.Stream)
+            using (var icon = new System.Drawing.Icon(resourceInfo.Stream))
+            {
+                return (System.Drawing.Icon)icon.Clone();
+            }
+        }
+
+        private static bool IsSystemLightTheme()
+        {
+            try
+            {
+                using (RegistryKey key = Registry.CurrentUser.OpenSubKey(PersonalizeRegistryPath))
+                {
+                    object value = key == null ? null : key.GetValue(SystemUsesLightThemeRegistryValue);
+                    if (value is int intValue)
+                        return intValue != 0;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(ex, "Failed to read Windows system theme; falling back to light tray icon");
+            }
+
+            return true;
         }
 
         private void OnLanguageItemClick(object sender, EventArgs e)
@@ -834,10 +914,21 @@ namespace ScourgifyMini
             if (trayIcon == null)
                 return;
 
+            if (_trayThemeEventsSubscribed)
+            {
+                SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
+                _trayThemeEventsSubscribed = false;
+            }
+
             var contextMenu = trayIcon.ContextMenuStrip;
+            var icon = trayIcon.Icon;
             trayIcon.ContextMenuStrip = null;
+            trayIcon.Icon = null;
             trayIcon.Dispose();
             trayIcon = null;
+
+            if (icon != null)
+                icon.Dispose();
 
             if (contextMenu != null)
                 contextMenu.Dispose();
