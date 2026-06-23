@@ -152,6 +152,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Config.cs" />
+    <Compile Include="EmbeddedResourceManager.cs" />
     <Compile Include="MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
@@ -197,28 +198,28 @@
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
     <EmbeddedResource Include="Properties\Resources.en-US.resx">
-      <Generator>PublicResXFileCodeGenerator</Generator>
-      <LastGenOutput>Resources.en-US.Designer.cs</LastGenOutput>
+      <WithCulture>false</WithCulture>
+      <LogicalName>ScourgifyMini.Properties.Resources.en-US.resources</LogicalName>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.fr-FR.resx">
-      <Generator>PublicResXFileCodeGenerator</Generator>
-      <LastGenOutput>Resources.fr-FR.Designer.cs</LastGenOutput>
+      <WithCulture>false</WithCulture>
+      <LogicalName>ScourgifyMini.Properties.Resources.fr-FR.resources</LogicalName>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>PublicResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.ru-RU.resx">
-      <Generator>PublicResXFileCodeGenerator</Generator>
-      <LastGenOutput>Resources.ru-RU.Designer.cs</LastGenOutput>
+      <WithCulture>false</WithCulture>
+      <LogicalName>ScourgifyMini.Properties.Resources.ru-RU.resources</LogicalName>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.zh-CN.resx">
-      <Generator>PublicResXFileCodeGenerator</Generator>
-      <LastGenOutput>Resources.zh-CN.Designer.cs</LastGenOutput>
+      <WithCulture>false</WithCulture>
+      <LogicalName>ScourgifyMini.Properties.Resources.zh-CN.resources</LogicalName>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.zh-TW.resx">
-      <Generator>PublicResXFileCodeGenerator</Generator>
-      <LastGenOutput>Resources.zh-TW.Designer.cs</LastGenOutput>
+      <WithCulture>false</WithCulture>
+      <LogicalName>ScourgifyMini.Properties.Resources.zh-TW.resources</LogicalName>
     </EmbeddedResource>
     <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
