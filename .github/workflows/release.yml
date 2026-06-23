@@ -116,7 +116,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag_name }}
-          name: ScourgifyMini ${{ steps.version.outputs.tag_name }}
+          name: ${{ steps.version.outputs.tag_name }}
           body_path: ${{ steps.changelog.outputs.notes_path }}
           draft: true
           prerelease: ${{ contains(steps.version.outputs.version, '-') }}
