@@ -28,6 +28,8 @@ ScourgifyMini 是一个轻量级 Windows 托盘工具，支持为 Window 快速�
    - **语言**
 3. 使用托盘菜单退出程序。
 
+首次运行时，ScourgifyMini 会在 `ScourgifyMini.exe` 同目录生成 `config.toml` 和 `logs/` 目录。
+
 ## 构建
 
 使用 Visual Studio 打开 `ScourgifyMini.sln`，或使用支持 .NET Framework WPF 项目和 Fody 6.x 的 MSBuild 版本构建。

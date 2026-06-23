@@ -28,6 +28,8 @@ Note: After Incognito Mode is enabled, no new items will be added, but related i
    - **Language**
 3. Exit from the tray menu.
 
+On first run, ScourgifyMini creates `config.toml` and the `logs/` directory next to `ScourgifyMini.exe`.
+
 ## Build
 
 Open `ScourgifyMini.sln` in Visual Studio, or build it with an MSBuild version that supports .NET Framework WPF projects and Fody 6.x.
