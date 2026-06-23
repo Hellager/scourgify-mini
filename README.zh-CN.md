@@ -1,4 +1,4 @@
-# <img src="Assets/icons/dark/icon.svg" width="42" height="42" alt="" style="vertical-align: -4px;"> 几净mini
+# <img src="Assets/title.cn.svg" alt="ScourgifyMini">
 
 其他语言版本: [中文](README.zh-CN.md) | [English](README.md)
 
