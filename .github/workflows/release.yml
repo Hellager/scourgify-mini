@@ -1,0 +1,123 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, for example 0.1.0 or v0.1.0"
+        required: true
+        type: string
+  push:
+    tags:
+      - "v*.*.*"
+      - "*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    name: Build release
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $versionInput = "${{ inputs.version }}"
+          } else {
+            $versionInput = "${{ github.ref_name }}"
+          }
+
+          $version = $versionInput.Trim()
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            throw "Version is required."
+          }
+
+          $versionNumber = $version -replace '^v', ''
+          if ($versionNumber -notmatch '^\d+\.\d+\.\d+([-.+][0-9A-Za-z.-]+)?$') {
+            throw "Version '$version' must look like 0.1.0 or v0.1.0."
+          }
+
+          if ("${{ github.event_name }}" -eq "workflow_dispatch" -and $version -notmatch '^v') {
+            $tagName = "v$versionNumber"
+          } else {
+            $tagName = $version
+          }
+
+          "version=$versionNumber" >> $env:GITHUB_OUTPUT
+          "tag_name=$tagName" >> $env:GITHUB_OUTPUT
+          "artifact_name=ScourgifyMini-$tagName.exe" >> $env:GITHUB_OUTPUT
+
+      - name: Extract changelog
+        id: changelog
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $changelog = Get-Content -LiteralPath "CHANGELOG.md" -Raw
+          $pattern = "(?ms)^## \[$([regex]::Escape($version))\][^\r\n]*(?:\r?\n)(.*?)(?=^## \[|\z)"
+          $match = [regex]::Match($changelog, $pattern)
+
+          if (-not $match.Success) {
+            throw "CHANGELOG.md does not contain an entry for version [$version]."
+          }
+
+          $notes = $match.Groups[1].Value.Trim()
+          if ([string]::IsNullOrWhiteSpace($notes)) {
+            throw "CHANGELOG.md entry for version [$version] is empty."
+          }
+
+          $notesPath = Join-Path $env:RUNNER_TEMP "release-notes.md"
+          Set-Content -LiteralPath $notesPath -Value $notes -Encoding UTF8
+          "notes_path=$notesPath" >> $env:GITHUB_OUTPUT
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2
+
+      - name: Restore NuGet packages
+        run: nuget restore ScourgifyMini.sln
+
+      - name: Build Release
+        run: msbuild ScourgifyMini.sln /p:Configuration=Release /p:Platform="Any CPU" /m /restore:false
+
+      - name: Prepare artifact
+        id: artifact
+        shell: pwsh
+        run: |
+          $source = Join-Path $env:GITHUB_WORKSPACE "bin\Release\ScourgifyMini.exe"
+          if (-not (Test-Path -LiteralPath $source)) {
+            throw "Release executable was not found at $source."
+          }
+
+          $artifactDir = Join-Path $env:RUNNER_TEMP "release-artifacts"
+          New-Item -ItemType Directory -Path $artifactDir -Force | Out-Null
+
+          $artifactPath = Join-Path $artifactDir "${{ steps.version.outputs.artifact_name }}"
+          Copy-Item -LiteralPath $source -Destination $artifactPath -Force
+
+          "artifact_path=$artifactPath" >> $env:GITHUB_OUTPUT
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.version.outputs.artifact_name }}
+          path: ${{ steps.artifact.outputs.artifact_path }}
+          if-no-files-found: error
+
+      - name: Create draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag_name }}
+          name: ScourgifyMini ${{ steps.version.outputs.tag_name }}
+          body_path: ${{ steps.changelog.outputs.notes_path }}
+          draft: true
+          prerelease: ${{ contains(steps.version.outputs.version, '-') }}
+          files: ${{ steps.artifact.outputs.artifact_path }}
