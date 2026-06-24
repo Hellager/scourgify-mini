@@ -1,4 +1,5 @@
-# <img src="Assets/title.cn.svg" alt="ScourgifyMini">
+![title](./Assets/title/dark/title.cn.svg#gh-dark-mode-only)
+![title](./Assets/title/light/title.cn.svg#gh-light-mode-only)
 
 其他语言版本: [中文](README.zh-CN.md) | [English](README.md)
 

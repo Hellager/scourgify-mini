@@ -1,4 +1,5 @@
-# <img src="Assets/title.svg" alt="ScourgifyMini">
+![title](./Assets/title/dark/title.svg#gh-dark-mode-only)
+![title](./Assets/title/light/title.svg#gh-light-mode-only)
 
 Read this in other languages: [English](README.md) | [中文](README.zh-CN.md)
 
