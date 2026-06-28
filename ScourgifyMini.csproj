@@ -243,9 +243,6 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
-    <Resource Include="Assets\icon.ico" />
-  </ItemGroup>
-  <ItemGroup>
     <Resource Include="Assets\icons\light\icon.ico" />
   </ItemGroup>
   <ItemGroup>
